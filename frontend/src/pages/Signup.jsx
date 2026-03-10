@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import { BookOpen, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
-const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#219EBC','#8338EC'];
+const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#219EBC','#8338EC','#EC4899'];
 const YEAR_LEVELS = ['Kindergarten','1','2','3','4','5','6','7','8','9','10','11','12'];
 const HOMESCHOOL_STAGES = [
   { value: 'just-starting', label: 'Just Starting Out' },

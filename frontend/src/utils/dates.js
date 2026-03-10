@@ -1,6 +1,6 @@
 import { format, startOfWeek, addDays, addWeeks, subWeeks } from 'date-fns';
 
-export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export function getWeekStart(date = new Date()) {
   return format(startOfWeek(date, { weekStartsOn: 1 }), 'yyyy-MM-dd');
@@ -26,6 +26,6 @@ export function prevWeek(weekStart) {
 
 export function formatWeekRange(weekStart) {
   const start = new Date(weekStart + 'T00:00:00');
-  const end = addDays(start, 4);
+  const end = addDays(start, 6);
   return `${format(start, 'MMM d')} – ${format(end, 'MMM d, yyyy')}`;
 }

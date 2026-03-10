@@ -3,7 +3,7 @@ import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, X, Palette, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 
-const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#E9C46A','#219EBC','#8338EC','#FB8500'];
+const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#E9C46A','#219EBC','#8338EC','#FB8500','#EC4899'];
 const YEAR_LEVELS = ['Kindergarten','1','2','3','4','5','6','7','8','9','10','11','12'];
 const THEME_PRESETS = [
   { label: 'Forest', primary: '#2D6A4F', bg: '#F7F5F0', accent: '#F4A261', sidebar: '#FFFFFF' },

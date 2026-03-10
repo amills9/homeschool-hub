@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { getWeekStart, getWeekDays, nextWeek, prevWeek, formatWeekRange } from '../utils/dates';
-import { ChevronLeft, ChevronRight, Plus, Check, Trash2, Clock, RotateCcw, X, Link, Pencil, Printer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Check, Trash2, Clock, RotateCcw, X, Link, Pencil, Printer, ExternalLink } from 'lucide-react';
 
-// ── Print Styles (injected once) ─────────────────────────────
 const PRINT_STYLE = `
 @media print {
   body * { visibility: hidden !important; }
@@ -12,7 +11,6 @@ const PRINT_STYLE = `
   @page { size: A4 landscape; margin: 12mm; }
 }
 `;
-
 function injectPrintStyle() {
   if (!document.getElementById('planner-print-style')) {
     const s = document.createElement('style');
@@ -48,36 +46,53 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
             {task.subject_name && <span style={{ fontSize: 11, color: task.subject_color || 'var(--text-3)' }}>{task.subject_icon} {task.subject_name}</span>}
-            {task.duration_minutes && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><Clock size={10} />{task.duration_minutes}min</span>}
+            {task.duration_minutes > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><Clock size={10} />{task.duration_minutes}min</span>}
             {task.is_recurring === 1 && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><RotateCcw size={10} />recurring</span>}
-            {task.resource_title && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><Link size={10} />{task.resource_title}</span>}
+            {task.resource_title && (
+              task.resource_url ? (
+                <a href={task.resource_url} target="_blank" rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--primary)', textDecoration: 'none' }}
+                  onClick={e => e.stopPropagation()}>
+                  <ExternalLink size={10} />{task.resource_title}
+                </a>
+              ) : (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}>
+                  <Link size={10} />{task.resource_title}
+                </span>
+              )
+            )}
           </div>
           {task.description && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{task.description}</div>}
         </div>
         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(task)} style={{ color: 'var(--text-3)', padding: 4 }} title="Edit task">
-            <Pencil size={12} />
-          </button>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(task.id)} style={{ color: 'var(--text-3)', padding: 4 }} title="Delete task">
-            <Trash2 size={12} />
-          </button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(task)} style={{ color: 'var(--text-3)', padding: 4 }} title="Edit"><Pencil size={12} /></button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(task.id)} style={{ color: 'var(--text-3)', padding: 4 }} title="Delete"><Trash2 size={12} /></button>
         </div>
       </div>
     </div>
   );
 }
 
-// ── Task Form (shared by Add + Edit) ─────────────────────────
+// ── Task Form ─────────────────────────────────────────────────
 function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit, onClose, isEdit }) {
   const [form, setForm] = useState(initial);
+
   const availableSubjects = subjects.filter(s => s.child_id === form.child_id);
-  const availableResources = resources.filter(r => !r.child_id || r.child_id === form.child_id);
+
+  // Filter resources: match the selected subject (or show all for child if no subject selected)
+  const availableResources = resources.filter(r => {
+    if (r.child_id && r.child_id !== form.child_id) return false;
+    if (form.subject_id && r.subject_id && r.subject_id !== form.subject_id) return false;
+    return true;
+  });
 
   async function handleSubmit(e) {
     e.preventDefault();
     await onSubmit({ ...form, week_start: weekStart });
     onClose();
   }
+
+  const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -102,7 +117,7 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
           <div className="grid-2">
             <div className="input-group">
               <label>Subject</label>
-              <select className="select" value={form.subject_id || ''} onChange={e => setForm({ ...form, subject_id: e.target.value })}>
+              <select className="select" value={form.subject_id || ''} onChange={e => setForm({ ...form, subject_id: e.target.value, resource_id: '' })}>
                 <option value="">No subject</option>
                 {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
               </select>
@@ -110,7 +125,7 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
             <div className="input-group">
               <label>Day</label>
               <select className="select" value={form.day_of_week} onChange={e => setForm({ ...form, day_of_week: e.target.value })}>
-                {['Monday','Tuesday','Wednesday','Thursday','Friday'].map(d => <option key={d}>{d}</option>)}
+                {DAYS.map(d => <option key={d}>{d}</option>)}
               </select>
             </div>
           </div>
@@ -124,6 +139,9 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
                 </option>
               ))}
             </select>
+            {form.subject_id && availableResources.length === 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>No resources for this subject yet</div>
+            )}
           </div>
           <div className="grid-2">
             <div className="input-group">
@@ -162,12 +180,8 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
 
 // ── Print View ────────────────────────────────────────────────
 function PrintView({ tasks, children, weekStart, onClose }) {
-  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const days = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const weekLabel = formatWeekRange(weekStart);
-
-  function handlePrint() {
-    window.print();
-  }
 
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -175,20 +189,18 @@ function PrintView({ tasks, children, weekStart, onClose }) {
         <div className="modal-header">
           <h2 className="modal-title">Print Weekly Plan</h2>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button className="btn btn-primary" onClick={handlePrint}><Printer size={15} /> Print</button>
+            <button className="btn btn-primary" onClick={() => window.print()}><Printer size={15} /> Print</button>
             <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
           </div>
         </div>
-
         <div id="print-area">
           {children.map((child, ci) => {
             const childTasks = tasks.filter(t => t.child_id === child.id);
             if (childTasks.length === 0) return null;
             return (
               <div key={child.id} style={{ marginBottom: 40, pageBreakAfter: ci < children.length - 1 ? 'always' : 'auto' }}>
-                {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: `3px solid ${child.avatar_color}` }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: child.avatar_color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18, flexShrink: 0 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: child.avatar_color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 18 }}>
                     {child.name[0]}
                   </div>
                   <div>
@@ -196,32 +208,24 @@ function PrintView({ tasks, children, weekStart, onClose }) {
                     <div style={{ fontSize: 13, color: '#888' }}>Week of {weekLabel}</div>
                   </div>
                 </div>
-
-                {/* Day columns */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 8 }}>
                   {days.map(day => {
                     const dayTasks = childTasks.filter(t => t.day_of_week === day);
                     const totalMins = dayTasks.reduce((sum, t) => sum + (t.duration_minutes || 0), 0);
                     return (
                       <div key={day}>
-                        <div style={{ background: child.avatar_color, color: 'white', padding: '6px 10px', borderRadius: '6px 6px 0 0', fontWeight: 700, fontSize: 13 }}>
-                          {day}
-                          {totalMins > 0 && <span style={{ fontWeight: 400, fontSize: 11, marginLeft: 6, opacity: 0.85 }}>{totalMins}min</span>}
+                        <div style={{ background: child.avatar_color, color: 'white', padding: '5px 8px', borderRadius: '5px 5px 0 0', fontWeight: 700, fontSize: 11 }}>
+                          {day.slice(0,3)}
+                          {totalMins > 0 && <div style={{ fontWeight: 400, fontSize: 10, opacity: 0.85 }}>{totalMins}min</div>}
                         </div>
-                        <div style={{ border: `1px solid ${child.avatar_color}40`, borderTop: 'none', borderRadius: '0 0 6px 6px', minHeight: 120, padding: 6 }}>
+                        <div style={{ border: `1px solid ${child.avatar_color}40`, borderTop: 'none', borderRadius: '0 0 5px 5px', minHeight: 100, padding: 5 }}>
                           {dayTasks.length === 0 ? (
-                            <div style={{ color: '#ccc', fontSize: 12, padding: '8px 4px', textAlign: 'center' }}>—</div>
+                            <div style={{ color: '#ccc', fontSize: 11, padding: '6px 2px', textAlign: 'center' }}>—</div>
                           ) : dayTasks.map(task => (
-                            <div key={task.id} style={{
-                              padding: '6px 8px', marginBottom: 6, borderRadius: 4,
-                              borderLeft: `3px solid ${task.subject_color || child.avatar_color}`,
-                              background: `${task.subject_color || child.avatar_color}12`,
-                              fontSize: 12,
-                            }}>
-                              <div style={{ fontWeight: 600, color: '#222' }}>{task.title}</div>
-                              {task.subject_name && <div style={{ color: task.subject_color || '#888', fontSize: 11, marginTop: 2 }}>{task.subject_icon} {task.subject_name}</div>}
-                              {task.duration_minutes > 0 && <div style={{ color: '#888', fontSize: 11 }}>⏱ {task.duration_minutes}min</div>}
-                              {task.description && <div style={{ color: '#666', fontSize: 11, marginTop: 2 }}>{task.description}</div>}
+                            <div key={task.id} style={{ padding: '4px 6px', marginBottom: 4, borderRadius: 3, borderLeft: `3px solid ${task.subject_color || child.avatar_color}`, background: `${task.subject_color || child.avatar_color}12`, fontSize: 11 }}>
+                              <div style={{ fontWeight: 600 }}>{task.title}</div>
+                              {task.subject_name && <div style={{ color: task.subject_color || '#888', fontSize: 10 }}>{task.subject_icon} {task.subject_name}</div>}
+                              {task.duration_minutes > 0 && <div style={{ color: '#888', fontSize: 10 }}>⏱ {task.duration_minutes}min</div>}
                             </div>
                           ))}
                         </div>
@@ -238,7 +242,7 @@ function PrintView({ tasks, children, weekStart, onClose }) {
   );
 }
 
-// ── Main Component ────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────
 export default function WeeklyPlanner() {
   const [weekStart, setWeekStart] = useState(getWeekStart());
   const [tasks, setTasks] = useState([]);
@@ -251,17 +255,14 @@ export default function WeeklyPlanner() {
   const [addDay, setAddDay] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  // Mobile: which day is expanded
   const [expandedDay, setExpandedDay] = useState(null);
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
   useEffect(() => { injectPrintStyle(); }, []);
   useEffect(() => { loadAll(); }, [weekStart, selectedChild]);
   useEffect(() => {
-    // Default expand today on mobile
-    const days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-    const todayIdx = new Date().getDay() - 1;
-    if (isMobile && todayIdx >= 0 && todayIdx < 5) setExpandedDay(days[todayIdx]);
+    const allDays = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const todayName = allDays[new Date().getDay() === 0 ? 6 : new Date().getDay() - 1];
+    setExpandedDay(todayName);
   }, []);
 
   async function loadAll() {
@@ -280,35 +281,13 @@ export default function WeeklyPlanner() {
     } finally { setLoading(false); }
   }
 
-  async function toggleTask(task) {
-    await api.patch(`/tasks/${task.id}/complete`);
-    loadAll();
-  }
-
-  async function deleteTask(id) {
-    if (!confirm('Delete this task?')) return;
-    await api.delete(`/tasks/${id}`);
-    loadAll();
-  }
-
-  async function handleAddTask(form) {
-    await api.post('/tasks', form);
-    loadAll();
-  }
-
-  async function handleEditTask(form) {
-    await api.put(`/tasks/${form.id}`, form);
-    loadAll();
-  }
-
-  async function copyRecurring() {
-    const prev = prevWeek(weekStart);
-    await api.post('/tasks/copy-recurring', { from_week: prev, to_week: weekStart });
-    loadAll();
-  }
+  async function toggleTask(task) { await api.patch(`/tasks/${task.id}/complete`); loadAll(); }
+  async function deleteTask(id) { if (!confirm('Delete this task?')) return; await api.delete(`/tasks/${id}`); loadAll(); }
+  async function handleAddTask(form) { await api.post('/tasks', form); loadAll(); }
+  async function handleEditTask(form) { await api.put(`/tasks/${form.id}`, form); loadAll(); }
+  async function copyRecurring() { await api.post('/tasks/copy-recurring', { from_week: prevWeek(weekStart), to_week: weekStart }); loadAll(); }
 
   const days = getWeekDays(weekStart);
-
   const addInitial = {
     child_id: children[0]?.id || '',
     subject_id: '', resource_id: '', title: '', description: '',
@@ -323,19 +302,12 @@ export default function WeeklyPlanner() {
           <p className="page-subtitle">{formatWeekRange(weekStart)}</p>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <button className="btn btn-ghost btn-sm" onClick={() => setShowPrint(true)} title="Print weekly plan">
-            <Printer size={14} /> Print
-          </button>
-          <button className="btn btn-ghost btn-sm" onClick={copyRecurring} title="Copy recurring tasks from previous week">
-            <RotateCcw size={14} /> Copy Recurring
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => { setAddDay(null); setShowModal(true); }}>
-            <Plus size={14} /> Add Task
-          </button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setShowPrint(true)}><Printer size={14} /> Print</button>
+          <button className="btn btn-ghost btn-sm" onClick={copyRecurring}><RotateCcw size={14} /> Copy Recurring</button>
+          <button className="btn btn-primary btn-sm" onClick={() => { setAddDay(null); setShowModal(true); }}><Plus size={14} /> Add Task</button>
         </div>
       </div>
 
-      {/* Week nav + child filter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setWeekStart(prevWeek(weekStart))}><ChevronLeft size={16} /></button>
@@ -348,26 +320,23 @@ export default function WeeklyPlanner() {
         </select>
       </div>
 
-      {/* ── Desktop grid ── */}
-      <div className="planner-desktop" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
+      {/* Desktop — 7 column grid */}
+      <div className="planner-desktop" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
         {days.map(day => {
           const dayTasks = tasks.filter(t => t.day_of_week === day.name);
           const done = dayTasks.filter(t => t.is_completed).length;
+          const isWeekend = day.name === 'Saturday' || day.name === 'Sunday';
           return (
             <div key={day.name} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ padding: '10px 14px', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderBottom: '3px solid var(--primary)' }}>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>{day.short}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{day.date}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{done}/{dayTasks.length} done</div>
+              <div style={{ padding: '10px 12px', background: isWeekend ? 'var(--surface-2)' : 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderBottom: `3px solid ${isWeekend ? 'var(--border)' : 'var(--primary)'}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{day.short}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{day.date}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{done}/{dayTasks.length}</div>
               </div>
               <div style={{ flex: 1 }}>
-                {loading ? (
-                  <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
-                ) : dayTasks.length === 0 ? (
-                  <div style={{ padding: '16px 10px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
-                ) : dayTasks.map(task => (
-                  <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />
-                ))}
+                {loading ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                  : dayTasks.length === 0 ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
+                  : dayTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
               </div>
               <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
                 onClick={() => { setAddDay(day.name); setShowModal(true); }}>
@@ -378,39 +347,34 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {/* ── Mobile accordion ── */}
+      {/* Mobile accordion */}
       <div className="planner-mobile" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {days.map(day => {
           const dayTasks = tasks.filter(t => t.day_of_week === day.name);
           const done = dayTasks.filter(t => t.is_completed).length;
           const isOpen = expandedDay === day.name;
+          const isWeekend = day.name === 'Saturday' || day.name === 'Sunday';
           return (
             <div key={day.name} style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden' }}>
               <div onClick={() => setExpandedDay(isOpen ? null : day.name)}
-                style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: 'var(--surface)', cursor: 'pointer', borderBottom: isOpen ? '2px solid var(--primary)' : 'none' }}>
+                style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: isWeekend ? 'var(--surface-2)' : 'var(--surface)', cursor: 'pointer', borderBottom: isOpen ? `2px solid ${isWeekend ? 'var(--border)' : 'var(--primary)'}` : 'none' }}>
                 <div style={{ flex: 1 }}>
                   <span style={{ fontWeight: 700, fontSize: 15 }}>{day.name}</span>
                   <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>{day.date}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 12, color: done === dayTasks.length && dayTasks.length > 0 ? 'var(--primary)' : 'var(--text-3)' }}>
-                    {done}/{dayTasks.length} done
-                  </span>
+                  <span style={{ fontSize: 12, color: done === dayTasks.length && dayTasks.length > 0 ? 'var(--primary)' : 'var(--text-3)' }}>{done}/{dayTasks.length}</span>
                   <span style={{ fontSize: 18, color: 'var(--text-3)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
                 </div>
               </div>
               {isOpen && (
                 <div style={{ padding: '12px 12px 8px', background: 'var(--surface-2)' }}>
-                  {loading ? (
-                    <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
-                  ) : dayTasks.length === 0 ? (
-                    <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
-                  ) : dayTasks.map(task => (
-                    <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />
-                  ))}
+                  {loading ? <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                    : dayTasks.length === 0 ? <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
+                    : dayTasks.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
                   <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 13, marginTop: 4 }}
                     onClick={() => { setAddDay(day.name); setShowModal(true); }}>
-                    <Plus size={13} /> Add task for {day.name}
+                    <Plus size={13} /> Add task
                   </button>
                 </div>
               )}
@@ -419,25 +383,9 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {/* Modals */}
-      {showModal && (
-        <TaskForm
-          initial={addInitial} children={children} subjects={subjects}
-          resources={resources} weekStart={weekStart}
-          onSubmit={handleAddTask} onClose={() => setShowModal(false)} isEdit={false}
-        />
-      )}
-      {editTask && (
-        <TaskForm
-          initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }}
-          children={children} subjects={subjects} resources={resources}
-          weekStart={weekStart} onSubmit={handleEditTask}
-          onClose={() => setEditTask(null)} isEdit={true}
-        />
-      )}
-      {showPrint && (
-        <PrintView tasks={tasks} children={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />
-      )}
+      {showModal && <TaskForm initial={addInitial} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => setShowModal(false)} isEdit={false} />}
+      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
+      {showPrint && <PrintView tasks={tasks} children={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
     </div>
   );
 }

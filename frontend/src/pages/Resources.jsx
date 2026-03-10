@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { Plus, Link, FileText, BookOpen, Trash2, ExternalLink, X } from 'lucide-react';
+import { Plus, Link, FileText, BookOpen, Trash2, ExternalLink, X, Pencil } from 'lucide-react';
 
 const TYPE_ICONS = { link: Link, pdf: FileText, book: BookOpen, note: FileText };
 const TYPE_LABELS = { link: 'Website', pdf: 'PDF', book: 'Book', note: 'Note' };
 const TYPE_COLORS = { link: '#6C63FF', pdf: '#E76F51', book: '#2D6A4F', note: '#F4A261' };
 
-function ResourceCard({ resource, onDelete }) {
+function ResourceCard({ resource, onDelete, onEdit }) {
   const Icon = TYPE_ICONS[resource.type] || Link;
   const color = TYPE_COLORS[resource.type] || '#6C63FF';
   return (
@@ -20,8 +20,8 @@ function ResourceCard({ resource, onDelete }) {
           {resource.child_name && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>👤 {resource.child_name}</div>}
           {resource.subject_name && <div style={{ fontSize: 12, color: 'var(--text-3)' }}>📚 {resource.subject_name}</div>}
           {resource.notes && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 6 }}>{resource.notes}</div>}
-          <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-            <span className="badge" style={{ background: color + '18', color: color }}>
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span className="badge" style={{ background: color + '18', color }}>
               {TYPE_LABELS[resource.type] || resource.type}
             </span>
             {resource.url && (
@@ -35,22 +35,32 @@ function ResourceCard({ resource, onDelete }) {
             )}
           </div>
         </div>
-        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(resource.id)} style={{ color: 'var(--text-3)', padding: 4 }}>
-          <Trash2 size={14} />
-        </button>
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(resource)} style={{ color: 'var(--text-3)', padding: 4 }} title="Edit resource">
+            <Pencil size={13} />
+          </button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(resource.id)} style={{ color: 'var(--text-3)', padding: 4 }} title="Delete resource">
+            <Trash2 size={14} />
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-function AddResourceModal({ onClose, onAdd, children, subjects }) {
-  const [form, setForm] = useState({ child_id: '', subject_id: '', title: '', type: 'link', url: '', notes: '' });
+function ResourceModal({ resource, onClose, onSave, children, subjects }) {
+  const isEdit = !!resource;
+  const [form, setForm] = useState(resource || { child_id: '', subject_id: '', title: '', type: 'link', url: '', notes: '' });
   const availableSubjects = subjects.filter(s => !form.child_id || s.child_id === form.child_id);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    await api.post('/resources', form);
-    onAdd();
+    if (isEdit) {
+      await api.put(`/resources/${resource.id}`, form);
+    } else {
+      await api.post('/resources', form);
+    }
+    onSave();
     onClose();
   }
 
@@ -58,7 +68,7 @@ function AddResourceModal({ onClose, onAdd, children, subjects }) {
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <h2 className="modal-title">Add Resource</h2>
+          <h2 className="modal-title">{isEdit ? 'Edit Resource' : 'Add Resource'}</h2>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -78,7 +88,7 @@ function AddResourceModal({ onClose, onAdd, children, subjects }) {
             </div>
             <div className="input-group">
               <label>Child (optional)</label>
-              <select className="select" value={form.child_id} onChange={e => setForm({...form, child_id: e.target.value, subject_id: ''})}>
+              <select className="select" value={form.child_id || ''} onChange={e => setForm({...form, child_id: e.target.value, subject_id: ''})}>
                 <option value="">All children</option>
                 {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>
@@ -86,7 +96,7 @@ function AddResourceModal({ onClose, onAdd, children, subjects }) {
           </div>
           <div className="input-group">
             <label>Subject (optional)</label>
-            <select className="select" value={form.subject_id} onChange={e => setForm({...form, subject_id: e.target.value})}>
+            <select className="select" value={form.subject_id || ''} onChange={e => setForm({...form, subject_id: e.target.value})}>
               <option value="">No subject</option>
               {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
             </select>
@@ -94,16 +104,16 @@ function AddResourceModal({ onClose, onAdd, children, subjects }) {
           {(form.type === 'link' || form.type === 'pdf') && (
             <div className="input-group">
               <label>URL</label>
-              <input className="input" type="url" value={form.url} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://..." />
+              <input className="input" type="url" value={form.url || ''} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://..." />
             </div>
           )}
           <div className="input-group">
             <label>Notes</label>
-            <textarea className="textarea" value={form.notes} onChange={e => setForm({...form, notes: e.target.value})} rows={2} placeholder="Optional description..." />
+            <textarea className="textarea" value={form.notes || ''} onChange={e => setForm({...form, notes: e.target.value})} rows={2} placeholder="Optional description..." />
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">Add Resource</button>
+            <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Add Resource'}</button>
           </div>
         </form>
       </div>
@@ -118,6 +128,7 @@ export default function Resources() {
   const [filterChild, setFilterChild] = useState('');
   const [filterType, setFilterType] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editResource, setEditResource] = useState(null);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -148,7 +159,7 @@ export default function Resources() {
           <h1 className="page-title">Resources</h1>
           <p className="page-subtitle">Learning materials & links</p>
         </div>
-        <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+        <button className="btn btn-primary" onClick={() => { setEditResource(null); setShowModal(true); }}>
           <Plus size={16} /> Add Resource
         </button>
       </div>
@@ -175,14 +186,20 @@ export default function Resources() {
         </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
-          {filtered.map(r => <ResourceCard key={r.id} resource={r} onDelete={deleteResource} />)}
+          {filtered.map(r => (
+            <ResourceCard key={r.id} resource={r}
+              onDelete={deleteResource}
+              onEdit={r => { setEditResource(r); setShowModal(true); }}
+            />
+          ))}
         </div>
       )}
 
       {showModal && (
-        <AddResourceModal
-          onClose={() => setShowModal(false)}
-          onAdd={loadAll}
+        <ResourceModal
+          resource={editResource}
+          onClose={() => { setShowModal(false); setEditResource(null); }}
+          onSave={loadAll}
           children={children}
           subjects={subjects}
         />

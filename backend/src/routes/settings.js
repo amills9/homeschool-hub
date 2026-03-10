@@ -1,6 +1,6 @@
 const express = require('express');
 const { db } = require('../db/init');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -13,7 +13,7 @@ router.get('/', authMiddleware, (req, res) => {
   res.json(settings);
 });
 
-router.put('/', adminMiddleware, (req, res) => {
+router.put('/', authMiddleware, (req, res) => {
   const upsert = db.prepare('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)');
   const upsertMany = db.transaction((settings) => {
     for (const [key, value] of Object.entries(settings)) {
