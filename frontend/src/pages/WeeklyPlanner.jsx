@@ -321,7 +321,7 @@ export default function WeeklyPlanner() {
       </div>
 
       {/* Desktop — 7 column grid */}
-      <div className="planner-desktop" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
+      <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7, 1fr)', gap: 10 }}>
         {days.map(day => {
           const dayTasks = tasks.filter(t => t.day_of_week === day.name);
           const done = dayTasks.filter(t => t.is_completed).length;
@@ -348,7 +348,7 @@ export default function WeeklyPlanner() {
       </div>
 
       {/* Mobile accordion */}
-      <div className="planner-mobile" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="planner-mobile" style={{ lexDirection: 'column', gap: 10 }}>
         {days.map(day => {
           const dayTasks = tasks.filter(t => t.day_of_week === day.name);
           const done = dayTasks.filter(t => t.is_completed).length;
