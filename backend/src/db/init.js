@@ -93,6 +93,15 @@ function initializeDatabase() {
       FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS todos (
+      id TEXT PRIMARY KEY,
+      child_id TEXT NOT NULL,
+      text TEXT NOT NULL,
+      is_done INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS app_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -110,21 +119,21 @@ function initializeDatabase() {
     );
   `);
 
-  // ── Migrations ────────────────────────────────────────────
+  // ── Migrations ─────────────────────────────────────────
   const userCols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
-  const addIfMissing = (col, def) => {
+  const addUserCol = (col, def) => {
     if (!userCols.includes(col)) {
       db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
       console.log(`✅ Migrated users: added ${col}`);
     }
   };
-  addIfMissing('status', "TEXT NOT NULL DEFAULT 'approved'");
-  addIfMissing('email', 'TEXT');
-  addIfMissing('num_children', 'INTEGER DEFAULT 0');
-  addIfMissing('homeschool_stage', "TEXT DEFAULT ''");
-  addIfMissing('newsletter_opt_in', 'INTEGER DEFAULT 0');
-  addIfMissing('reset_token', 'TEXT');
-  addIfMissing('reset_token_expires', 'TEXT');
+  addUserCol('status', "TEXT NOT NULL DEFAULT 'approved'");
+  addUserCol('email', 'TEXT');
+  addUserCol('num_children', 'INTEGER DEFAULT 0');
+  addUserCol('homeschool_stage', "TEXT DEFAULT ''");
+  addUserCol('newsletter_opt_in', 'INTEGER DEFAULT 0');
+  addUserCol('reset_token', 'TEXT');
+  addUserCol('reset_token_expires', 'TEXT');
 
   const childCols = db.prepare('PRAGMA table_info(children)').all().map(c => c.name);
   if (!childCols.includes('user_id')) {
@@ -140,7 +149,9 @@ function initializeDatabase() {
     console.log('✅ Migrated weekly_tasks: added resource_id');
   }
 
-  // ── Seed admin ────────────────────────────────────────────
+  // todos table created by CREATE TABLE IF NOT EXISTS above — no further migration needed
+
+  // ── Seed admin ─────────────────────────────────────────
   const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
   if (!adminExists) {
     const { v4: uuidv4 } = require('uuid');
@@ -151,7 +162,6 @@ function initializeDatabase() {
     console.log('✅ Default admin created');
   }
 
-  // Ensure all users have preference rows
   db.prepare(`
     SELECT u.id FROM users u LEFT JOIN user_preferences p ON u.id = p.user_id WHERE p.user_id IS NULL
   `).all().forEach(u => db.prepare('INSERT OR IGNORE INTO user_preferences (user_id) VALUES (?)').run(u.id));
