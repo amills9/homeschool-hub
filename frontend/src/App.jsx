@@ -14,6 +14,8 @@ import WeeklyPlanner from './pages/WeeklyPlanner';
 import Resources from './pages/Resources';
 import Setup from './pages/Setup';
 import Account from './pages/Account';
+import YearlyReport from './pages/YearlyReport';
+import CurriculumAdmin from './pages/CurriculumAdmin';
 
 function AdminLayout({ children }) {
   const { user } = useAuth();
@@ -50,7 +52,7 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Dashboard — admin sees AdminDashboard, parents see Dashboard */}
+      {/* Dashboard */}
       <Route path="/dashboard" element={
         user?.role === 'admin'
           ? <AdminLayout><AdminDashboard /></AdminLayout>
@@ -58,13 +60,15 @@ function AppRoutes() {
       } />
 
       {/* Admin-only */}
-      <Route path="/admin-settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
+      <Route path="/admin-settings"  element={<AdminLayout><AdminSettings /></AdminLayout>} />
+      <Route path="/admin-curriculum" element={<AdminLayout><CurriculumAdmin /></AdminLayout>} />
 
-      {/* Parent-only */}
-      <Route path="/weekly" element={<ParentLayout><WeeklyPlanner /></ParentLayout>} />
-      <Route path="/resources" element={<ParentLayout><Resources /></ParentLayout>} />
-      <Route path="/setup" element={<ParentLayout><Setup /></ParentLayout>} />
-      <Route path="/account" element={<ParentLayout><Account /></ParentLayout>} />
+      {/* Parent routes */}
+      <Route path="/weekly"        element={<ParentLayout><WeeklyPlanner /></ParentLayout>} />
+      <Route path="/resources"     element={<ParentLayout><Resources /></ParentLayout>} />
+      <Route path="/setup"         element={<ParentLayout><Setup /></ParentLayout>} />
+      <Route path="/account"       element={<ParentLayout><Account /></ParentLayout>} />
+      <Route path="/yearly-report" element={<ParentLayout><YearlyReport /></ParentLayout>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

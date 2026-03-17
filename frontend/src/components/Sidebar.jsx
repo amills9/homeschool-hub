@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, CalendarDays, Settings, LogOut, BookOpen, Library, Menu, X, Cog } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, LogOut, BookOpen, Library, Menu, X, Cog, FileBarChart } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/weekly', icon: CalendarDays, label: 'Weekly Planner' },
-  { to: '/resources', icon: Library, label: 'Resources' },
-  { to: '/setup', icon: Settings, label: 'Setup' },
-  { to: '/account', icon: Cog, label: 'Account' },
+  { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/weekly',        icon: CalendarDays,    label: 'Weekly Planner' },
+  { to: '/resources',     icon: Library,         label: 'Resources' },
+  { to: '/yearly-report', icon: FileBarChart,    label: 'Yearly Report' },
+  { to: '/setup',         icon: Settings,        label: 'Setup' },
+  { to: '/account',       icon: Cog,             label: 'Account' },
 ];
 
 export default function Sidebar() {
@@ -35,7 +36,6 @@ export default function Sidebar() {
             <div style={{ fontSize: 11, color: 'var(--text-3)', fontWeight: 500 }}>HUB</div>
           </div>
         </div>
-        {/* X button — only visible on mobile via CSS */}
         <button className="sidebar-close-btn" onClick={() => setMobileOpen(false)}>
           <X size={20} />
         </button>
@@ -68,12 +68,12 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar — always visible on large screens */}
+      {/* Desktop sidebar */}
       <aside className="sidebar sidebar-desktop-panel" style={{ background: 'var(--sidebar-color, var(--surface))' }}>
         <NavContent />
       </aside>
 
-      {/* Mobile top bar — hidden on desktop via CSS */}
+      {/* Mobile top bar */}
       <div className="mobile-topbar">
         <button className="hamburger-btn" onClick={() => setMobileOpen(true)}>
           <Menu size={22} />
@@ -91,7 +91,7 @@ export default function Sidebar() {
       {mobileOpen && (
         <>
           <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />
-          <aside className="sidebar sidebar-drawer">
+          <aside className="sidebar sidebar-drawer" style={{ background: 'var(--sidebar-color, var(--surface))' }}>
             <NavContent />
           </aside>
         </>

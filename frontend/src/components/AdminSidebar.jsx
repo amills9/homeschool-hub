@@ -1,11 +1,12 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, LogOut, BookOpen, ShieldCheck, Settings } from 'lucide-react';
+import { LayoutDashboard, LogOut, BookOpen, ShieldCheck, Settings, GraduationCap } from 'lucide-react';
 
 const ADMIN_NAV = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/admin-settings', icon: Settings, label: 'Settings' },
+  { to: '/dashboard',         icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/admin-settings',    icon: Settings,        label: 'Settings' },
+  { to: '/admin-curriculum',  icon: GraduationCap,   label: 'Curriculum' },
 ];
 
 export default function AdminSidebar() {
