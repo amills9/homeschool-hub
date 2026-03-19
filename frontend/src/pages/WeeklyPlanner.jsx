@@ -10,24 +10,21 @@ import {
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-// ── Centred Modal wrapper ─────────────────────────────────────
+// ── Centred Modal ─────────────────────────────────────────────
 function CentredModal({ onClose, children, maxWidth = 560 }) {
   return (
-    <div
-      onClick={e => e.target === e.currentTarget && onClose()}
+    <div onClick={e => e.target === e.currentTarget && onClose()}
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(4px)', display: 'flex',
-        alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, padding: '20px 16px', overflowY: 'auto',
+        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', zIndex: 1000, padding: '20px 16px', overflowY: 'auto',
       }}>
       <div style={{
         background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
         padding: 32, width: '100%', maxWidth,
         maxHeight: 'calc(100vh - 40px)', overflowY: 'auto',
-        boxShadow: '0 12px 40px rgba(0,0,0,0.2)',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.2)', margin: 'auto',
         animation: 'scaleIn 0.2s ease',
-        margin: 'auto',
       }}>
         {children}
       </div>
@@ -35,7 +32,7 @@ function CentredModal({ onClose, children, maxWidth = 560 }) {
   );
 }
 
-// ── Photo Upload Modal ────────────────────────────────────────
+// ── Photo Upload ──────────────────────────────────────────────
 function PhotoUploadModal({ task, onClose, onUploaded }) {
   const [preview, setPreview] = useState(null);
   const [base64, setBase64] = useState(null);
@@ -62,9 +59,7 @@ function PhotoUploadModal({ task, onClose, onUploaded }) {
       onUploaded(res.data);
       onClose();
     } catch (err) {
-      const msg = err.response?.data?.error || err.message || 'Upload failed';
-      setError(msg);
-      console.error('Upload error:', msg);
+      setError(err.response?.data?.error || err.message || 'Upload failed');
     } finally { setUploading(false); }
   }
 
@@ -78,7 +73,7 @@ function PhotoUploadModal({ task, onClose, onUploaded }) {
         <div style={{ fontSize: 13, color: 'var(--text-2)' }}>Task: <strong>{task.title}</strong></div>
         {preview ? (
           <div style={{ position: 'relative' }}>
-            <img src={preview} alt="Preview" style={{ width: '100%', borderRadius: 'var(--radius-sm)', maxHeight: 280, objectFit: 'cover' }} />
+            <img src={preview} alt="" style={{ width: '100%', borderRadius: 'var(--radius-sm)', maxHeight: 280, objectFit: 'cover' }} />
             <button onClick={() => { setPreview(null); setBase64(null); }}
               style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: 28, height: 28, color: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <X size={14} />
@@ -109,7 +104,7 @@ function PhotoUploadModal({ task, onClose, onUploaded }) {
   );
 }
 
-// ── Fullscreen Photo Viewer ───────────────────────────────────
+// ── Photo Viewer ──────────────────────────────────────────────
 function PhotoViewer({ photo, task, onClose, onDelete }) {
   const [copied, setCopied] = useState(false);
   const shareText = `${photo.caption || task.title} — shared from Homeschool HUB`;
@@ -121,7 +116,12 @@ function PhotoViewer({ photo, task, onClose, onDelete }) {
     navigator.clipboard.writeText(shareText).then(() => alert('Caption copied! Open Instagram and paste when creating your post.'));
   }
   async function copyLink() { await navigator.clipboard.writeText(photo.url); setCopied(true); setTimeout(() => setCopied(false), 2000); }
-  async function handleDelete() { if (!confirm('Delete this photo?')) return; await api.delete(`/photos/${photo.id}`); onDelete(photo.id); onClose(); }
+  async function handleDelete() {
+    if (!confirm('Delete this photo?')) return;
+    await api.delete(`/photos/${photo.id}`);
+    onDelete(photo.id);
+    onClose();
+  }
 
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
@@ -132,16 +132,16 @@ function PhotoViewer({ photo, task, onClose, onDelete }) {
       <img src={photo.url} alt={photo.caption || task.title} style={{ maxWidth: '85vw', maxHeight: '60vh', borderRadius: 12, objectFit: 'contain' }} />
       {photo.caption && <div style={{ color: 'white', fontSize: 15, textAlign: 'center', maxWidth: 500 }}>{photo.caption}</div>}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button onClick={shareFacebook} style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:'none',background:'#1877F2',color:'white',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+        <button onClick={shareFacebook} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, border: 'none', background: '#1877F2', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           <Facebook size={16} /> Facebook
         </button>
-        <button onClick={shareInstagram} style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:'none',background:'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',color:'white',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+        <button onClick={shareInstagram} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           <Instagram size={16} /> Instagram
         </button>
-        <button onClick={copyLink} style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:'none',background:'rgba(255,255,255,0.15)',color:'white',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+        <button onClick={copyLink} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(255,255,255,0.15)', color: 'white', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           <Copy size={16} /> {copied ? 'Copied!' : 'Copy Link'}
         </button>
-        <button onClick={handleDelete} style={{ display:'flex',alignItems:'center',gap:8,padding:'8px 16px',borderRadius:8,border:'none',background:'rgba(231,111,81,0.3)',color:'#ff9988',cursor:'pointer',fontWeight:600,fontSize:13 }}>
+        <button onClick={handleDelete} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(231,111,81,0.3)', color: '#ff9988', cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
           <Trash2 size={16} /> Delete
         </button>
       </div>
@@ -156,53 +156,65 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
   const [showUpload, setShowUpload] = useState(false);
   const [viewPhoto, setViewPhoto] = useState(null);
 
-  useEffect(() => { loadPhotos(); }, [task.id]);
-
-  async function loadPhotos() {
-    try { const r = await api.get(`/photos?task_id=${task.id}`); setPhotos(r.data); } catch {}
-  }
+  useEffect(() => {
+    api.get(`/photos?task_id=${task.id}`).then(r => setPhotos(r.data)).catch(() => {});
+  }, [task.id]);
 
   return (
-    <div style={{ padding:'10px 12px', borderRadius:'var(--radius-sm)', background: task.is_completed ? 'var(--surface-2)' : 'var(--surface)', border:`1.5px solid ${(task.subject_color||'#E2DDD8')}40`, borderLeft:`4px solid ${task.subject_color||'var(--border)'}`, marginBottom:8, opacity: task.is_completed ? 0.85 : 1 }}>
-      <div style={{ display:'flex', alignItems:'flex-start', gap:8 }}>
-        <button onClick={() => onToggle(task)} style={{ flexShrink:0, width:20, height:20, borderRadius:6, border:`2px solid ${task.is_completed ? 'var(--primary)' : 'var(--border)'}`, background: task.is_completed ? 'var(--primary)' : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', marginTop:2 }}>
+    <div style={{
+      padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+      background: task.is_completed ? 'var(--surface-2)' : 'var(--surface)',
+      border: `1.5px solid ${(task.subject_color || '#E2DDD8')}40`,
+      borderLeft: `4px solid ${task.subject_color || 'var(--border)'}`,
+      marginBottom: 8, opacity: task.is_completed ? 0.85 : 1,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <button onClick={() => onToggle(task)} style={{
+          flexShrink: 0, width: 20, height: 20, borderRadius: 6,
+          border: `2px solid ${task.is_completed ? 'var(--primary)' : 'var(--border)'}`,
+          background: task.is_completed ? 'var(--primary)' : 'transparent',
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2,
+        }}>
           {task.is_completed && <Check size={12} color="white" strokeWidth={3} />}
         </button>
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontSize:13, fontWeight:500, color: task.is_completed ? 'var(--text-3)' : 'var(--text)', textDecoration: task.is_completed ? 'line-through' : 'none' }}>{task.title}</div>
-          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:4, flexWrap:'wrap' }}>
-            {task.subject_name && <span style={{ fontSize:11, color:task.subject_color||'var(--text-3)' }}>{task.subject_icon} {task.subject_name}</span>}
-            {task.duration_minutes > 0 && <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--text-3)' }}><Clock size={10} />{task.duration_minutes}min</span>}
-            {task.is_recurring === 1 && <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--text-3)' }}><RotateCcw size={10} />recurring</span>}
-            {task.resource_title && (task.resource_url
-              ? <a href={task.resource_url} target="_blank" rel="noopener noreferrer" style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--primary)', textDecoration:'none' }} onClick={e=>e.stopPropagation()}><ExternalLink size={10}/>{task.resource_title}</a>
-              : <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--text-3)' }}><Link size={10}/>{task.resource_title}</span>
-            )}
-            {task.outcome_code && <span style={{ fontSize:11, color:'var(--primary)', fontWeight:600 }}>{task.outcome_code}</span>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: task.is_completed ? 'var(--text-3)' : 'var(--text)', textDecoration: task.is_completed ? 'line-through' : 'none' }}>
+            {task.title}
           </div>
-          {task.description && <div style={{ fontSize:12, color:'var(--text-3)', marginTop:4 }}>{task.description}</div>}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+            {task.subject_name && <span style={{ fontSize: 11, color: task.subject_color || 'var(--text-3)' }}>{task.subject_icon} {task.subject_name}</span>}
+            {task.duration_minutes > 0 && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><Clock size={10} />{task.duration_minutes}min</span>}
+            {task.is_recurring === 1 && <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><RotateCcw size={10} />recurring</span>}
+            {task.resource_title && (
+              task.resource_url
+                ? <a href={task.resource_url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--primary)', textDecoration: 'none' }} onClick={e => e.stopPropagation()}><ExternalLink size={10} />{task.resource_title}</a>
+                : <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11, color: 'var(--text-3)' }}><Link size={10} />{task.resource_title}</span>
+            )}
+            {task.nsw_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{task.nsw_code}</span>}
+          </div>
+          {task.description && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{task.description}</div>}
           {photos.length > 0 && (
-            <div style={{ display:'flex', gap:6, marginTop:8, flexWrap:'wrap' }}>
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               {photos.map(photo => (
                 <div key={photo.id} onClick={() => setViewPhoto(photo)}
-                  style={{ width:52, height:52, borderRadius:6, overflow:'hidden', cursor:'pointer', flexShrink:0, position:'relative' }}>
-                  <img src={photo.thumbnail_url||photo.url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                  style={{ width: 52, height: 52, borderRadius: 6, overflow: 'hidden', cursor: 'pointer', flexShrink: 0 }}>
+                  <img src={photo.thumbnail_url || photo.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 </div>
               ))}
               <div onClick={() => setShowUpload(true)}
-                style={{ width:52, height:52, borderRadius:6, border:'1.5px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', background:'var(--surface-2)', flexShrink:0 }}>
+                style={{ width: 52, height: 52, borderRadius: 6, border: '1.5px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: 'var(--surface-2)', flexShrink: 0 }}>
                 <Plus size={16} color="var(--text-3)" />
               </div>
             </div>
           )}
         </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:2, flexShrink:0 }}>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(task)} style={{ color:'var(--text-3)', padding:4 }}><Pencil size={12}/></button>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowUpload(true)} style={{ color:'var(--text-3)', padding:4 }}><Camera size={12}/></button>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(task.id)} style={{ color:'var(--text-3)', padding:4 }}><Trash2 size={12}/></button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flexShrink: 0 }}>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onEdit(task)} style={{ color: 'var(--text-3)', padding: 4 }}><Pencil size={12} /></button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowUpload(true)} style={{ color: 'var(--text-3)', padding: 4 }}><Camera size={12} /></button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => onDelete(task.id)} style={{ color: 'var(--text-3)', padding: 4 }}><Trash2 size={12} /></button>
         </div>
       </div>
-      {showUpload && <PhotoUploadModal task={task} onClose={() => setShowUpload(false)} onUploaded={p => { setPhotos(prev => [...prev, p]); }} />}
+      {showUpload && <PhotoUploadModal task={task} onClose={() => setShowUpload(false)} onUploaded={p => setPhotos(prev => [...prev, p])} />}
       {viewPhoto && <PhotoViewer photo={viewPhoto} task={task} onClose={() => setViewPhoto(null)} onDelete={id => setPhotos(prev => prev.filter(p => p.id !== id))} />}
     </div>
   );
@@ -225,21 +237,20 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
     return true;
   });
 
-  // Load outcomes when child or subject changes
   useEffect(() => {
-    if (!form.child_id) return;
+    if (!form.child_id || !form.subject_id) { setOutcomes([]); return; }
     const subject = subjects.find(s => s.id === form.subject_id)?.name;
     if (!subject) { setOutcomes([]); return; }
     setLoadingOutcomes(true);
     api.get(`/curriculum/for-child/${form.child_id}`, { params: { subject } })
-      .then(r => setOutcomes(r.data))
+      .then(r => setOutcomes(r.data || []))
       .catch(() => setOutcomes([]))
       .finally(() => setLoadingOutcomes(false));
   }, [form.child_id, form.subject_id]);
 
   function getOutcomeLabel(o) {
-    const code = o[stateCodeKey] || o.acara_code;
-    return `${code} — ${o.description}`;
+    const code = o[stateCodeKey] || o.acara_code || '';
+    return code ? `${code} — ${o.description}` : o.description;
   }
 
   async function handleSubmit(e) {
@@ -254,11 +265,14 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
         <h2 className="modal-title">{isEdit ? 'Edit Task' : 'Add Task'}</h2>
         <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
       </div>
-      <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+        {/* Child selector — add only */}
         {!isEdit && (
           <div className="input-group">
             <label>Child</label>
-            <select className="select" value={form.child_id} onChange={e => setForm({ ...form, child_id: e.target.value, subject_id: '', resource_id: '', curriculum_outcome_id: '' })}>
+            <select className="select" value={form.child_id}
+              onChange={e => setForm({ ...form, child_id: e.target.value, subject_id: '', resource_id: '', curriculum_outcome_id: '' })}>
               {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -267,13 +281,15 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
         {/* Title */}
         <div className="input-group">
           <label>Task Title *</label>
-          <input className="input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Reading — Chapter 5" required />
+          <input className="input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}
+            placeholder="e.g. Reading — Chapter 5" required />
         </div>
 
         {/* Subject */}
         <div className="input-group">
           <label>Subject</label>
-          <select className="select" value={form.subject_id || ''} onChange={e => setForm({ ...form, subject_id: e.target.value, resource_id: '', curriculum_outcome_id: '' })}>
+          <select className="select" value={form.subject_id || ''}
+            onChange={e => setForm({ ...form, subject_id: e.target.value, resource_id: '', curriculum_outcome_id: '' })}>
             <option value="">No subject</option>
             {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
           </select>
@@ -283,26 +299,25 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
         <div className="input-group">
           <label>
             Learning Outcome
-            <span style={{ color:'var(--text-3)', fontWeight:400, marginLeft:6, fontSize:12 }}>
-              ({user?.state || 'NSW'} · optional)
+            <span style={{ color: 'var(--text-3)', fontWeight: 400, marginLeft: 6, fontSize: 12 }}>
+              ({(user?.state || 'NSW')} · optional)
             </span>
           </label>
           {!form.subject_id ? (
-            <div style={{ fontSize:12, color:'var(--text-3)', padding:'10px 14px', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', border:'1.5px solid var(--border)' }}>
-              Select a subject first to see learning outcomes
+            <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
+              Select a subject first
             </div>
           ) : loadingOutcomes ? (
-            <div style={{ fontSize:12, color:'var(--text-3)', padding:'10px 14px' }}>Loading outcomes...</div>
+            <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '10px 14px' }}>Loading outcomes...</div>
           ) : outcomes.length === 0 ? (
-            <div style={{ fontSize:12, color:'var(--text-3)', padding:'10px 14px', background:'var(--surface-2)', borderRadius:'var(--radius-sm)', border:'1.5px solid var(--border)' }}>
-              No outcomes loaded for this subject yet — add them via Admin → Curriculum
+            <div style={{ fontSize: 12, color: 'var(--text-3)', padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
+              No outcomes for this subject yet
             </div>
           ) : (
-            <select className="select" value={form.curriculum_outcome_id || ''} onChange={e => setForm({ ...form, curriculum_outcome_id: e.target.value })}>
+            <select className="select" value={form.curriculum_outcome_id || ''}
+              onChange={e => setForm({ ...form, curriculum_outcome_id: e.target.value })}>
               <option value="">No outcome</option>
-              {outcomes.map(o => (
-                <option key={o.id} value={o.id}>{getOutcomeLabel(o)}</option>
-              ))}
+              {outcomes.map(o => <option key={o.id} value={o.id}>{getOutcomeLabel(o)}</option>)}
             </select>
           )}
         </div>
@@ -317,43 +332,46 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
           </div>
           <div className="input-group">
             <label>Duration (minutes)</label>
-            <input className="input" type="number" min={5} max={480} value={form.duration_minutes} onChange={e => setForm({ ...form, duration_minutes: +e.target.value })} />
+            <input className="input" type="number" min={5} max={480} value={form.duration_minutes}
+              onChange={e => setForm({ ...form, duration_minutes: +e.target.value })} />
           </div>
         </div>
 
         {/* Resource */}
         <div className="input-group">
-          <label>Resource <span style={{ color:'var(--text-3)', fontWeight:400 }}>(optional)</span></label>
+          <label>Resource <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
           <select className="select" value={form.resource_id || ''} onChange={e => setForm({ ...form, resource_id: e.target.value })}>
             <option value="">No resource</option>
             {availableResources.map(r => (
               <option key={r.id} value={r.id}>
-                {r.type==='link'?'🔗':r.type==='pdf'?'📄':r.type==='book'?'📚':'📝'} {r.title}
+                {r.type === 'link' ? '🔗' : r.type === 'pdf' ? '📄' : r.type === 'book' ? '📚' : '📝'} {r.title}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Recurring + Notes */}
-        <div style={{ display:'flex', gap:16, alignItems:'center' }}>
+        {/* Recurring + completed */}
+        <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
           <label className="checkbox-wrap">
             <input type="checkbox" checked={!!form.is_recurring} onChange={e => setForm({ ...form, is_recurring: e.target.checked })} />
-            <span style={{ fontSize:14 }}>Recurring weekly</span>
+            <span style={{ fontSize: 14 }}>Recurring weekly</span>
           </label>
           {isEdit && (
             <label className="checkbox-wrap">
               <input type="checkbox" checked={!!form.is_completed} onChange={e => setForm({ ...form, is_completed: e.target.checked })} />
-              <span style={{ fontSize:14 }}>Mark completed</span>
+              <span style={{ fontSize: 14 }}>Mark completed</span>
             </label>
           )}
         </div>
 
+        {/* Notes */}
         <div className="input-group">
           <label>Notes</label>
-          <textarea className="textarea" value={form.description||''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Optional notes..." rows={2} />
+          <textarea className="textarea" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })}
+            placeholder="Optional notes..." rows={2} />
         </div>
 
-        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Add Task'}</button>
         </div>
@@ -368,37 +386,35 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
   const [excluded, setExcluded] = useState(new Set());
   const [selectedChildren, setSelectedChildren] = useState(new Set(children.map(c => c.id)));
 
-  function toggleTask(id) { setExcluded(prev => { const n = new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; }); }
-  function toggleChild(id) { setSelectedChildren(prev => { const n = new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; }); }
+  function toggleTask(id) { setExcluded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
+  function toggleChild(id) { setSelectedChildren(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
 
   function doPrint() {
-    const pw = window.open('','_blank','width=1200,height=800');
+    const pw = window.open('', '_blank', 'width=1200,height=800');
     const kids = children.filter(c => selectedChildren.has(c.id));
     let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weekly Plan</title>
     <style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Arial,sans-serif;font-size:10px}
-    .section{margin-bottom:20px;page-break-after:always}.section:last-child{page-break-after:auto}
-    .header{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px}
-    .avatar{width:34px;height:34px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
-    .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
-    .day-head{padding:4px 6px;border-radius:4px 4px 0 0;font-weight:700;font-size:10px;color:white}
-    .day-body{border:1px solid #e2ddd8;border-top:none;border-radius:0 0 4px 4px;min-height:90px;padding:4px}
-    .task{padding:3px 5px;margin-bottom:3px;border-radius:3px;border-left:3px solid;font-size:9px}
-    .no-tasks{color:#ccc;font-size:9px;padding:8px 2px;text-align:center}</style></head><body>`;
-
+    .s{margin-bottom:20px;page-break-after:always}.s:last-child{page-break-after:auto}
+    .h{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px}
+    .av{width:34px;height:34px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
+    .g{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .dh{padding:4px 6px;border-radius:4px 4px 0 0;font-weight:700;font-size:10px;color:white}
+    .db{border:1px solid #e2ddd8;border-top:none;border-radius:0 0 4px 4px;min-height:90px;padding:4px}
+    .t{padding:3px 5px;margin-bottom:3px;border-radius:3px;border-left:3px solid;font-size:9px}
+    .nt{color:#ccc;font-size:9px;padding:8px 2px;text-align:center}</style></head><body>`;
     for (const child of kids) {
-      const ct = tasks.filter(t => t.child_id===child.id && !excluded.has(t.id));
-      html += `<div class="section"><div class="header" style="border-bottom:3px solid ${child.avatar_color};margin-bottom:10px;padding-bottom:8px">
-        <div class="avatar" style="background:${child.avatar_color}">${child.name[0]}</div>
+      const ct = tasks.filter(t => t.child_id === child.id && !excluded.has(t.id));
+      html += `<div class="s"><div class="h" style="border-bottom:3px solid ${child.avatar_color};padding-bottom:8px">
+        <div class="av" style="background:${child.avatar_color}">${child.name[0]}</div>
         <div><div style="font-weight:700;font-size:18px">${child.name}</div><div style="font-size:11px;color:#888">Week of ${weekLabel}</div></div>
-      </div><div class="grid">`;
+      </div><div class="g">`;
       for (const day of DAYS) {
-        const dt = ct.filter(t => t.day_of_week===day);
-        const mins = dt.reduce((s,t) => s+(t.duration_minutes||0),0);
-        const wknd = day==='Saturday'||day==='Sunday';
-        html += `<div><div class="day-head" style="background:${wknd?'#9b9890':child.avatar_color}">${day.slice(0,3)}${mins>0?`<br><span style="font-weight:400;font-size:8px">${mins}min</span>`:''}</div>
-          <div class="day-body">`;
-        if (!dt.length) html += `<div class="no-tasks">—</div>`;
-        else for (const t of dt) html += `<div class="task" style="background:${t.subject_color||child.avatar_color}15;border-left-color:${t.subject_color||child.avatar_color}"><div style="font-weight:600">${t.title}</div>${t.subject_name?`<div style="color:#888;font-size:8px">${t.subject_icon||''} ${t.subject_name}</div>`:''}</div>`;
+        const dt = ct.filter(t => t.day_of_week === day);
+        const mins = dt.reduce((s, t) => s + (t.duration_minutes || 0), 0);
+        const wknd = day === 'Saturday' || day === 'Sunday';
+        html += `<div><div class="dh" style="background:${wknd ? '#9b9890' : child.avatar_color}">${day.slice(0,3)}${mins > 0 ? `<br><span style="font-weight:400;font-size:8px">${mins}min</span>` : ''}</div><div class="db">`;
+        if (!dt.length) html += `<div class="nt">—</div>`;
+        else for (const t of dt) html += `<div class="t" style="background:${t.subject_color || child.avatar_color}15;border-left-color:${t.subject_color || child.avatar_color}"><div style="font-weight:600">${t.title}</div>${t.subject_name ? `<div style="color:#888;font-size:8px">${t.subject_icon || ''} ${t.subject_name}</div>` : ''}</div>`;
         html += `</div></div>`;
       }
       html += `</div></div>`;
@@ -409,43 +425,44 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
 
   return (
     <CentredModal onClose={onClose} maxWidth={820}>
-      <div className="modal-header" style={{ flexShrink:0 }}>
+      <div className="modal-header" style={{ flexShrink: 0 }}>
         <h2 className="modal-title">Print Preview</h2>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-primary" onClick={doPrint}><Printer size={15} /> Print</button>
           <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
         </div>
       </div>
-      <div style={{ padding:'0 0 16px', display:'flex', gap:8, flexWrap:'wrap' }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {children.map(c => (
           <button key={c.id} onClick={() => toggleChild(c.id)}
-            style={{ padding:'5px 14px', borderRadius:20, border:`2px solid ${c.avatar_color}`, background: selectedChildren.has(c.id)?c.avatar_color:'transparent', color: selectedChildren.has(c.id)?'white':c.avatar_color, cursor:'pointer', fontWeight:600, fontSize:13 }}>
+            style={{ padding: '5px 14px', borderRadius: 20, border: `2px solid ${c.avatar_color}`, background: selectedChildren.has(c.id) ? c.avatar_color : 'transparent', color: selectedChildren.has(c.id) ? 'white' : c.avatar_color, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
             {c.name}
           </button>
         ))}
       </div>
-      <div style={{ overflowY:'auto', maxHeight:'60vh' }}>
+      <div style={{ overflowY: 'auto', maxHeight: '60vh' }}>
         {children.filter(c => selectedChildren.has(c.id)).map(child => {
-          const ct = tasks.filter(t => t.child_id===child.id);
+          const ct = tasks.filter(t => t.child_id === child.id);
           return (
-            <div key={child.id} style={{ marginBottom:24 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, paddingBottom:8, borderBottom:`3px solid ${child.avatar_color}` }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:child.avatar_color, color:'white', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{child.name[0]}</div>
-                <span style={{ fontWeight:700, fontSize:16 }}>{child.name}</span>
+            <div key={child.id} style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, paddingBottom: 8, borderBottom: `3px solid ${child.avatar_color}` }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', background: child.avatar_color, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{child.name[0]}</div>
+                <span style={{ fontWeight: 700, fontSize: 16 }}>{child.name}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{weekLabel}</span>
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
                 {DAYS.map(day => {
-                  const dt = ct.filter(t => t.day_of_week===day);
-                  const wknd = day==='Saturday'||day==='Sunday';
+                  const dt = ct.filter(t => t.day_of_week === day);
+                  const wknd = day === 'Saturday' || day === 'Sunday';
                   return (
                     <div key={day}>
-                      <div style={{ background:wknd?'var(--text-3)':child.avatar_color, color:'white', padding:'4px 6px', borderRadius:'4px 4px 0 0', fontWeight:700, fontSize:10 }}>{day.slice(0,3)}</div>
-                      <div style={{ border:`1px solid ${child.avatar_color}40`, borderTop:'none', borderRadius:'0 0 4px 4px', minHeight:70, padding:4 }}>
-                        {!dt.length ? <div style={{ color:'var(--text-3)', fontSize:10, textAlign:'center', padding:'8px 0' }}>—</div>
+                      <div style={{ background: wknd ? 'var(--text-3)' : child.avatar_color, color: 'white', padding: '4px 6px', borderRadius: '4px 4px 0 0', fontWeight: 700, fontSize: 10 }}>{day.slice(0,3)}</div>
+                      <div style={{ border: `1px solid ${child.avatar_color}40`, borderTop: 'none', borderRadius: '0 0 4px 4px', minHeight: 70, padding: 4 }}>
+                        {!dt.length ? <div style={{ color: 'var(--text-3)', fontSize: 10, textAlign: 'center', padding: '8px 0' }}>—</div>
                           : dt.map(task => (
                             <div key={task.id} onClick={() => toggleTask(task.id)} title="Click to exclude"
-                              style={{ padding:'3px 5px', marginBottom:3, borderRadius:3, cursor:'pointer', borderLeft:`3px solid ${task.subject_color||child.avatar_color}`, background: excluded.has(task.id)?'#f0f0f0':`${task.subject_color||child.avatar_color}15`, opacity: excluded.has(task.id)?0.4:1, fontSize:10 }}>
-                              <div style={{ fontWeight:600, textDecoration: excluded.has(task.id)?'line-through':'none' }}>{task.title}</div>
+                              style={{ padding: '3px 5px', marginBottom: 3, borderRadius: 3, cursor: 'pointer', borderLeft: `3px solid ${task.subject_color || child.avatar_color}`, background: excluded.has(task.id) ? '#f0f0f0' : `${task.subject_color || child.avatar_color}15`, opacity: excluded.has(task.id) ? 0.4 : 1, fontSize: 10 }}>
+                              <div style={{ fontWeight: 600, textDecoration: excluded.has(task.id) ? 'line-through' : 'none' }}>{task.title}</div>
                             </div>
                           ))}
                       </div>
@@ -457,7 +474,7 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
           );
         })}
       </div>
-      <div style={{ paddingTop:12, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--text-3)' }}>
+      <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)' }}>
         💡 Click any task to exclude from print. Toggle children above.
       </div>
     </CentredModal>
@@ -478,6 +495,7 @@ export default function WeeklyPlanner() {
   const [editTask, setEditTask] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expandedDay, setExpandedDay] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const idx = new Date().getDay();
@@ -488,108 +506,143 @@ export default function WeeklyPlanner() {
 
   async function loadAll() {
     setLoading(true);
+    setError(null);
     try {
-      const [childRes, resourceRes] = await Promise.all([api.get('/children'), api.get('/resources')]);
-      const kids = childRes.data;
+      const [childRes, resourceRes] = await Promise.all([
+        api.get('/children'),
+        api.get('/resources'),
+      ]);
+      const kids = childRes.data || [];
       setChildren(kids);
-      setResources(resourceRes.data);
-      const subjectArrays = await Promise.all(kids.map(k => api.get(`/children/${k.id}/subjects`)));
-      setSubjects(subjectArrays.flatMap(r => r.data));
+      setResources(resourceRes.data || []);
+      if (kids.length > 0) {
+        const subjectArrays = await Promise.all(kids.map(k => api.get(`/children/${k.id}/subjects`).catch(() => ({ data: [] }))));
+        setSubjects(subjectArrays.flatMap(r => r.data || []));
+      }
       const params = new URLSearchParams({ week_start: weekStart });
       if (selectedChild !== 'all') params.set('child_id', selectedChild);
-      setTasks((await api.get(`/tasks?${params}`)).data);
+      const tasksRes = await api.get(`/tasks?${params}`);
+      setTasks(tasksRes.data || []);
     } catch (err) {
-      console.error('WeeklyPlanner loadAll error:', err);
-      // Don't crash the page — just show empty state
-    } finally { setLoading(false); }
+      console.error('WeeklyPlanner error:', err);
+      setError('Could not load planner data. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function toggleTask(task) { await api.patch(`/tasks/${task.id}/complete`); loadAll(); }
   async function deleteTask(id) { if (!confirm('Delete this task?')) return; await api.delete(`/tasks/${id}`); loadAll(); }
   async function handleAddTask(form) { await api.post('/tasks', form); loadAll(); }
   async function handleEditTask(form) { await api.put(`/tasks/${form.id}`, form); loadAll(); }
-  async function copyRecurring() { await api.post('/tasks/copy-recurring', { from_week: prevWeek(weekStart), to_week: weekStart }); loadAll(); }
+  async function copyRecurring() {
+    await api.post('/tasks/copy-recurring', { from_week: prevWeek(weekStart), to_week: weekStart });
+    loadAll();
+  }
 
   const days = getWeekDays(weekStart);
-  const addInitial = { child_id: children[0]?.id||'', subject_id:'', resource_id:'', curriculum_outcome_id:'', title:'', description:'', day_of_week: addDay||'Monday', duration_minutes:60, is_recurring:false };
+  const addInitial = {
+    child_id: children[0]?.id || '',
+    subject_id: '', resource_id: '', curriculum_outcome_id: '',
+    title: '', description: '',
+    day_of_week: addDay || 'Monday',
+    duration_minutes: 60, is_recurring: false,
+  };
+
+  if (error) {
+    return (
+      <div className="animate-fade">
+        <div className="page-header">
+          <h1 className="page-title">Weekly Planner</h1>
+        </div>
+        <div className="card" style={{ textAlign: 'center', padding: 40, color: 'var(--danger)' }}>
+          <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+          <div style={{ fontWeight: 600, marginBottom: 8 }}>{error}</div>
+          <button className="btn btn-primary" onClick={loadAll}>Try Again</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade">
-      <div className="page-header" style={{ flexWrap:'wrap', gap:12 }}>
+      <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 className="page-title">Weekly Planner</h1>
           <p className="page-subtitle">{formatWeekRange(weekStart)}</p>
         </div>
-        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <button className="btn btn-ghost btn-sm" onClick={() => setShowPrint(true)}><Printer size={14} /> Print</button>
           <button className="btn btn-ghost btn-sm" onClick={copyRecurring}><RotateCcw size={14} /> Copy Recurring</button>
           <button className="btn btn-primary btn-sm" onClick={() => { setAddDay(null); setShowModal(true); }}><Plus size={14} /> Add Task</button>
         </div>
       </div>
 
-      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24, flexWrap:'wrap' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setWeekStart(prevWeek(weekStart))}><ChevronLeft size={16}/></button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setWeekStart(prevWeek(weekStart))}><ChevronLeft size={16} /></button>
           <button className="btn btn-ghost btn-sm" onClick={() => setWeekStart(getWeekStart())}>Today</button>
-          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setWeekStart(nextWeek(weekStart))}><ChevronRight size={16}/></button>
+          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setWeekStart(nextWeek(weekStart))}><ChevronRight size={16} /></button>
         </div>
-        <select className="select" style={{ width:160 }} value={selectedChild} onChange={e => setSelectedChild(e.target.value)}>
+        <select className="select" style={{ width: 160 }} value={selectedChild} onChange={e => setSelectedChild(e.target.value)}>
           <option value="all">All Children</option>
           {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
-      {/* Desktop grid */}
-      <div className="planner-desktop" style={{ gridTemplateColumns:'repeat(7,1fr)', gap:10 }}>
+      {/* Desktop — 7 col grid, no inline display style so CSS controls it */}
+      <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7,1fr)', gap: 10 }}>
         {days.map(day => {
-          const dt = tasks.filter(t => t.day_of_week===day.name);
+          const dt = tasks.filter(t => t.day_of_week === day.name);
           const done = dt.filter(t => t.is_completed).length;
-          const wknd = day.name==='Saturday'||day.name==='Sunday';
+          const wknd = day.name === 'Saturday' || day.name === 'Sunday';
           return (
-            <div key={day.name} style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              <div style={{ padding:'10px 12px', background: wknd?'var(--surface-2)':'var(--surface)', borderRadius:'var(--radius-sm)', border:'1px solid var(--border)', borderBottom:`3px solid ${wknd?'var(--border)':'var(--primary)'}` }}>
-                <div style={{ fontWeight:700, fontSize:13 }}>{day.short}</div>
-                <div style={{ fontSize:11, color:'var(--text-3)' }}>{day.date}</div>
-                <div style={{ fontSize:11, color:'var(--text-3)', marginTop:2 }}>{done}/{dt.length}</div>
+            <div key={day.name} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ padding: '10px 12px', background: wknd ? 'var(--surface-2)' : 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderBottom: `3px solid ${wknd ? 'var(--border)' : 'var(--primary)'}` }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{day.short}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{day.date}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{done}/{dt.length}</div>
               </div>
-              <div style={{ flex:1 }}>
-                {loading ? <div style={{ padding:'20px 0', display:'flex', justifyContent:'center' }}><div className="spinner"/></div>
-                  : dt.length===0 ? <div style={{ padding:'12px 8px', textAlign:'center', color:'var(--text-3)', fontSize:12 }}>No tasks</div>
+              <div style={{ flex: 1 }}>
+                {loading ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                  : dt.length === 0 ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
                   : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
               </div>
-              <button className="btn btn-ghost btn-sm" style={{ width:'100%', justifyContent:'center', fontSize:12 }} onClick={() => { setAddDay(day.name); setShowModal(true); }}>
-                <Plus size={12}/> Add
+              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
+                onClick={() => { setAddDay(day.name); setShowModal(true); }}>
+                <Plus size={12} /> Add
               </button>
             </div>
           );
         })}
       </div>
 
-      {/* Mobile accordion */}
-      <div className="planner-mobile" style={{ flexDirection:'column', gap:10 }}>
+      {/* Mobile — accordion, no inline display style */}
+      <div className="planner-mobile" style={{ flexDirection: 'column', gap: 10 }}>
         {days.map(day => {
-          const dt = tasks.filter(t => t.day_of_week===day.name);
+          const dt = tasks.filter(t => t.day_of_week === day.name);
           const done = dt.filter(t => t.is_completed).length;
-          const isOpen = expandedDay===day.name;
-          const wknd = day.name==='Saturday'||day.name==='Sunday';
+          const isOpen = expandedDay === day.name;
+          const wknd = day.name === 'Saturday' || day.name === 'Sunday';
           return (
-            <div key={day.name} style={{ borderRadius:'var(--radius-sm)', border:'1px solid var(--border)', overflow:'hidden' }}>
-              <div onClick={() => setExpandedDay(isOpen?null:day.name)}
-                style={{ display:'flex', alignItems:'center', padding:'12px 16px', background: wknd?'var(--surface-2)':'var(--surface)', cursor:'pointer', borderBottom: isOpen?`2px solid ${wknd?'var(--border)':'var(--primary)'}`:' none' }}>
-                <div style={{ flex:1 }}>
-                  <span style={{ fontWeight:700, fontSize:15 }}>{day.name}</span>
-                  <span style={{ fontSize:12, color:'var(--text-3)', marginLeft:10 }}>{day.date}</span>
+            <div key={day.name} style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <div onClick={() => setExpandedDay(isOpen ? null : day.name)}
+                style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: wknd ? 'var(--surface-2)' : 'var(--surface)', cursor: 'pointer', borderBottom: isOpen ? `2px solid ${wknd ? 'var(--border)' : 'var(--primary)'}` : 'none' }}>
+                <div style={{ flex: 1 }}>
+                  <span style={{ fontWeight: 700, fontSize: 15 }}>{day.name}</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>{day.date}</span>
                 </div>
-                <span style={{ fontSize:12, color: done===dt.length&&dt.length>0?'var(--primary)':'var(--text-3)', marginRight:10 }}>{done}/{dt.length}</span>
-                <span style={{ fontSize:18, color:'var(--text-3)', transform: isOpen?'rotate(180deg)':'none', transition:'transform 0.2s' }}>⌄</span>
+                <span style={{ fontSize: 12, color: done === dt.length && dt.length > 0 ? 'var(--primary)' : 'var(--text-3)', marginRight: 10 }}>{done}/{dt.length}</span>
+                <span style={{ fontSize: 18, color: 'var(--text-3)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
               </div>
               {isOpen && (
-                <div style={{ padding:'12px 12px 8px', background:'var(--surface-2)' }}>
-                  {loading ? <div style={{ padding:'16px 0', display:'flex', justifyContent:'center' }}><div className="spinner"/></div>
-                    : dt.length===0 ? <div style={{ padding:'12px', textAlign:'center', color:'var(--text-3)', fontSize:13 }}>No tasks for {day.name}</div>
+                <div style={{ padding: '12px 12px 8px', background: 'var(--surface-2)' }}>
+                  {loading ? <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                    : dt.length === 0 ? <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
                     : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
-                  <button className="btn btn-ghost btn-sm" style={{ width:'100%', justifyContent:'center', fontSize:13, marginTop:4 }} onClick={() => { setAddDay(day.name); setShowModal(true); }}>
-                    <Plus size={13}/> Add task
+                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 13, marginTop: 4 }}
+                    onClick={() => { setAddDay(day.name); setShowModal(true); }}>
+                    <Plus size={13} /> Add task
                   </button>
                 </div>
               )}
@@ -598,8 +651,8 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {showModal && <TaskForm initial={addInitial} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => setShowModal(false)} isEdit={false} />}
-      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring===1 }} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
+      {showModal && <TaskForm initial={addInitial} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} />}
+      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
       {showPrint && <PrintPreview tasks={tasks} children={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
     </div>
   );

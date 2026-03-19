@@ -5,8 +5,24 @@ import { Plus, Pencil, Trash2, X, Check } from 'lucide-react';
 const SUBJECT_ICONS = ['📚','🔢','🌍','🔬','🎨','🎵','💻','🏃','✍️','🌿','🗣️','📖','🧪','🏛️','⚽'];
 const COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#E9C46A','#219EBC','#FB8500','#8338EC'];
 
+// Standard NSW learning areas shown as quick-add buttons
+const STANDARD_SUBJECTS = [
+  { name: 'English',       icon: '📖', color: '#6C63FF' },
+  { name: 'Mathematics',   icon: '🔢', color: '#219EBC' },
+  { name: 'Science',       icon: '🔬', color: '#2D6A4F' },
+  { name: 'HSIE',          icon: '🌍', color: '#E76F51' },
+  { name: 'Creative Arts', icon: '🎨', color: '#E9C46A' },
+  { name: 'PDHPE',         icon: '🏃', color: '#52B788' },
+  { name: 'TAS',           icon: '💻', color: '#264653' },
+];
+
 function SubjectForm({ child, subject, subjects, onSave, onCancel }) {
   const [form, setForm] = useState(subject || { name: '', color: COLORS[0], icon: '📚', target_hours_per_week: 5 });
+
+  function quickPick(s) {
+    setForm({ ...form, name: s.name, icon: s.icon, color: s.color });
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (subject) {
@@ -18,6 +34,20 @@ function SubjectForm({ child, subject, subjects, onSave, onCancel }) {
   }
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, background: 'var(--surface-2)', padding: 16, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+      {!subject && (
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)', marginBottom: 8 }}>Quick pick a learning area</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {STANDARD_SUBJECTS.map(s => (
+              <button key={s.name} type="button" onClick={() => quickPick(s)}
+                style={{ padding: '5px 12px', borderRadius: 20, border: `2px solid ${s.color}`, background: form.name === s.name ? s.color : 'transparent', color: form.name === s.name ? 'white' : s.color, cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                {s.icon} {s.name}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 6 }}>Or type a custom name below</div>
+        </div>
+      )}
       <div className="grid-2">
         <div className="input-group">
           <label>Subject Name *</label>
@@ -100,6 +130,14 @@ function ChildSection({ child, onRefresh }) {
     setOutcomes(outRes.data);
   }
 
+  async function addAllStandardSubjects() {
+    const existing = subjects.map(s => s.name.toLowerCase());
+    const toAdd = STANDARD_SUBJECTS.filter(s => !existing.includes(s.name.toLowerCase()));
+    if (toAdd.length === 0) { alert('All standard subjects already added!'); return; }
+    await Promise.all(toAdd.map(s => api.post(`/children/${child.id}/subjects`, { name: s.name, icon: s.icon, color: s.color, target_hours_per_week: 5 })));
+    loadChild();
+  }
+
   async function deleteSubject(id) {
     if (!confirm('Delete this subject?')) return;
     await api.delete(`/children/${child.id}/subjects/${id}`);
@@ -133,9 +171,14 @@ function ChildSection({ child, onRefresh }) {
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <h4 style={{ fontSize: 15 }}>Subjects</h4>
-          <button className="btn btn-ghost btn-sm" onClick={() => { setShowSubjectForm(!showSubjectForm); setEditSubject(null); }}>
-            <Plus size={14} /> Add Subject
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button className="btn btn-ghost btn-sm" onClick={addAllStandardSubjects} title="Add all NSW learning areas at once">
+              ✨ Add All Standard
+            </button>
+            <button className="btn btn-ghost btn-sm" onClick={() => { setShowSubjectForm(!showSubjectForm); setEditSubject(null); }}>
+              <Plus size={14} /> Add Subject
+            </button>
+          </div>
         </div>
         {showSubjectForm && !editSubject && (
           <div style={{ marginBottom: 12 }}>
