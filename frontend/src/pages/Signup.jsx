@@ -5,6 +5,12 @@ import { BookOpen, Plus, Trash2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#219EBC','#8338EC','#EC4899'];
 const YEAR_LEVELS = ['Kindergarten','1','2','3','4','5','6','7','8','9','10','11','12'];
+const AU_STATES = [
+  { value:'NSW',label:'New South Wales' }, { value:'VIC',label:'Victoria' },
+  { value:'QLD',label:'Queensland' },      { value:'SA', label:'South Australia' },
+  { value:'WA', label:'Western Australia'},{ value:'TAS',label:'Tasmania' },
+  { value:'ACT',label:'Australian Capital Territory' }, { value:'NT',label:'Northern Territory' },
+];
 const HOMESCHOOL_STAGES = [
   { value: 'just-starting', label: 'Just Starting Out' },
   { value: 'early-years',   label: 'Early Years (K–2)' },
@@ -17,7 +23,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     username: '', password: '', confirmPassword: '', display_name: '',
-    email: '', num_children: 1, homeschool_stage: '', newsletter_opt_in: false,
+    email: '', num_children: 1, homeschool_stage: '', newsletter_opt_in: false, state: 'NSW',
   });
   const [children, setChildren] = useState([{ name: '', year_level: '1', avatar_color: AVATAR_COLORS[0] }]);
   const [error, setError] = useState('');
@@ -48,6 +54,7 @@ export default function Signup() {
         num_children: form.num_children,
         homeschool_stage: form.homeschool_stage,
         newsletter_opt_in: form.newsletter_opt_in,
+        state: form.state,
         children: validChildren,
       });
       setSuccess(true);
@@ -135,6 +142,12 @@ export default function Signup() {
                   <div className="input-group">
                     <label>Number of Children</label>
                     <input className="input" type="number" min={1} max={20} value={form.num_children} onChange={e => setForm({ ...form, num_children: +e.target.value })} />
+                  </div>
+                  <div className="input-group">
+                    <label>State / Territory *</label>
+                    <select className="select" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} required>
+                      {AU_STATES.map(s => <option key={s.value} value={s.value}>{s.label} ({s.value})</option>)}
+                    </select>
                   </div>
                   <div className="input-group">
                     <label>Homeschool Stage *</label>

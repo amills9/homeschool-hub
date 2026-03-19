@@ -64,19 +64,6 @@ function initializeDatabase() {
       FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE SET NULL
     );
 
-    CREATE TABLE IF NOT EXISTS task_photos (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL,
-      url TEXT NOT NULL,
-      thumbnail_url TEXT NOT NULL,
-      public_id TEXT NOT NULL,
-      caption TEXT DEFAULT '',
-      share_opt_in INTEGER DEFAULT 0,
-      uploaded_by TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now')),
-      FOREIGN KEY (task_id) REFERENCES weekly_tasks(id) ON DELETE CASCADE
-    );
-
     CREATE TABLE IF NOT EXISTS learning_outcomes (
       id TEXT PRIMARY KEY,
       child_id TEXT NOT NULL,
@@ -119,6 +106,18 @@ function initializeDatabase() {
       display_name TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS task_photos (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      thumbnail_url TEXT NOT NULL,
+      public_id TEXT NOT NULL,
+      caption TEXT DEFAULT '',
+      uploaded_by TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (task_id) REFERENCES weekly_tasks(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS curriculum_outcomes (
       id TEXT PRIMARY KEY,
       acara_code TEXT NOT NULL,
@@ -140,15 +139,23 @@ function initializeDatabase() {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_curriculum_acara_code ON curriculum_outcomes(acara_code);
   `);
 
-  // ── Migrations for existing databases ────────────────────────────────────
-  const userCols = db.prepare('PRAGMA table_info(users)').all().map(c => c.name);
-  if (!userCols.includes('state')) db.exec("ALTER TABLE users ADD COLUMN state TEXT DEFAULT 'NSW'");
+  // Add state column to users if missing (migration for existing DBs)
+  const userCols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+  if (!userCols.includes('state')) {
+    db.exec("ALTER TABLE users ADD COLUMN state TEXT DEFAULT 'NSW'");
+  }
 
-  const taskCols = db.prepare('PRAGMA table_info(weekly_tasks)').all().map(c => c.name);
-  if (!taskCols.includes('resource_id')) db.exec('ALTER TABLE weekly_tasks ADD COLUMN resource_id TEXT');
+  // Add resource_id column to weekly_tasks if missing
+  const taskCols = db.prepare("PRAGMA table_info(weekly_tasks)").all().map(c => c.name);
+  if (!taskCols.includes('resource_id')) {
+    db.exec("ALTER TABLE weekly_tasks ADD COLUMN resource_id TEXT");
+  }
+  if (!taskCols.includes("curriculum_outcome_id")) {
+    db.exec("ALTER TABLE weekly_tasks ADD COLUMN curriculum_outcome_id TEXT");
+  }
 
-  // ── Seed admin ────────────────────────────────────────────────────────────
-  const adminExists = db.prepare("SELECT id FROM users WHERE role = 'admin'").get();
+  // Seed admin user if not exists
+  const adminExists = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
   if (!adminExists) {
     const { v4: uuidv4 } = require('uuid');
     const hash = bcrypt.hashSync('admin123', 10);

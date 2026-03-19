@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+// Note: React is used inline for selectedState and savingState
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Plus, Trash2, X, Palette, KeyRound, ChevronDown, ChevronUp } from 'lucide-react';
 
-const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#E9C46A','#219EBC','#8338EC','#FB8500','#EC4899'];
+const AVATAR_COLORS = ['#2D6A4F','#52B788','#6C63FF','#F4A261','#E76F51','#264653','#E9C46A','#219EBC','#8338EC','#FB8500'];
 const YEAR_LEVELS = ['Kindergarten','1','2','3','4','5','6','7','8','9','10','11','12'];
 const THEME_PRESETS = [
   { label: 'Forest', primary: '#2D6A4F', bg: '#F7F5F0', accent: '#F4A261', sidebar: '#FFFFFF' },
@@ -15,7 +16,23 @@ const THEME_PRESETS = [
 ];
 
 export default function Account() {
-  const { user, preferences, savePreferences } = useAuth();
+  const { user, preferences, savePreferences, updateState } = useAuth();
+  const [selectedState, setSelectedState] = React.useState(user?.state || 'NSW');
+  const [savingState, setSavingState] = React.useState(false);
+
+  const AU_STATES = [
+    { value:'NSW',label:'New South Wales' }, { value:'VIC',label:'Victoria' },
+    { value:'QLD',label:'Queensland' },      { value:'SA', label:'South Australia' },
+    { value:'WA', label:'Western Australia'},{ value:'TAS',label:'Tasmania' },
+    { value:'ACT',label:'Australian Capital Territory' }, { value:'NT',label:'Northern Territory' },
+  ];
+
+  async function handleSaveState() {
+    setSavingState(true);
+    try { await updateState(selectedState); showToast('State saved!'); }
+    catch (e) { showToast('Failed to save state'); }
+    finally { setSavingState(false); }
+  }
   const [children, setChildren] = useState([]);
   const [showChildModal, setShowChildModal] = useState(false);
   const [editChild, setEditChild] = useState(null);
@@ -70,6 +87,25 @@ export default function Account() {
         <div>
           <h1 className="page-title">Account</h1>
           <p className="page-subtitle">Manage your family, appearance & password</p>
+        </div>
+      </div>
+
+      {/* ── State / Territory ── */}
+      <div className="card" style={{ marginBottom: 24 }}>
+        <h2 style={{ fontSize: 18, marginBottom: 14 }}>State / Territory</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 14 }}>
+          Used to show your state's curriculum outcome codes in the task planner.
+        </p>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="input-group" style={{ minWidth: 240 }}>
+            <label>Your State</label>
+            <select className="select" value={selectedState} onChange={e => setSelectedState(e.target.value)}>
+              {AU_STATES.map(s => <option key={s.value} value={s.value}>{s.label} ({s.value})</option>)}
+            </select>
+          </div>
+          <button className="btn btn-primary" onClick={handleSaveState} disabled={savingState}>
+            {savingState ? 'Saving...' : 'Save State'}
+          </button>
         </div>
       </div>
 

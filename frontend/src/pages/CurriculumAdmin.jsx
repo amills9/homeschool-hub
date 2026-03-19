@@ -1,38 +1,63 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
-import { Upload, Download, RefreshCw, Save, Trash2, Plus, X, Check, AlertCircle } from 'lucide-react';
+import { Upload, Download, X, Check, AlertCircle, Trash2, RefreshCw } from 'lucide-react';
 
-const STATES = ['nsw','vic','qld','sa','wa','tas','act','nt'];
-const STATE_LABELS = { nsw:'NSW', vic:'VIC', qld:'QLD', sa:'SA', wa:'WA', tas:'TAS', act:'ACT', nt:'NT' };
-
+const STATES = ['NSW','VIC','QLD','SA','WA','TAS','ACT','NT'];
+const STATE_LABELS = {
+  NSW:'New South Wales', VIC:'Victoria', QLD:'Queensland', SA:'South Australia',
+  WA:'Western Australia', TAS:'Tasmania', ACT:'Australian Capital Territory', NT:'Northern Territory',
+};
 const STAGE_ORDER = ['Foundation','Early Stage 1','Stage 1','Stage 2','Stage 3','Stage 4','Stage 5','Stage 6'];
+function stageSort(a, b) { return (STAGE_ORDER.indexOf(a) ?? 99) - (STAGE_ORDER.indexOf(b) ?? 99); }
 
-function stageSort(a, b) {
-  return (STAGE_ORDER.indexOf(a) ?? 99) - (STAGE_ORDER.indexOf(b) ?? 99);
-}
-
+// Robust CSV parser — handles quoted fields with commas, newlines, escaped quotes
 function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g,''));
-  return lines.slice(1).map(line => {
-    // Handle quoted fields
-    const fields = [];
-    let inQuote = false, current = '';
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"' && !inQuote) { inQuote = true; }
-      else if (ch === '"' && inQuote) {
-        if (line[i+1] === '"') { current += '"'; i++; }
-        else inQuote = false;
-      } else if (ch === ',' && !inQuote) { fields.push(current); current = ''; }
-      else current += ch;
+  // Normalise line endings
+  text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+  const rows = [];
+  let i = 0;
+
+  function parseField() {
+    if (text[i] === '"') {
+      i++; // skip opening quote
+      let val = '';
+      while (i < text.length) {
+        if (text[i] === '"' && text[i+1] === '"') { val += '"'; i += 2; }
+        else if (text[i] === '"') { i++; break; } // closing quote
+        else { val += text[i++]; }
+      }
+      return val;
+    } else {
+      let val = '';
+      while (i < text.length && text[i] !== ',' && text[i] !== '\n') val += text[i++];
+      return val;
     }
-    fields.push(current);
+  }
+
+  function parseLine() {
+    const fields = [];
+    while (i < text.length && text[i] !== '\n') {
+      fields.push(parseField());
+      if (text[i] === ',') i++; // skip comma
+    }
+    if (text[i] === '\n') i++; // skip newline
+    return fields;
+  }
+
+  // Parse header
+  const headers = parseLine().map(h => h.trim().toLowerCase());
+
+  // Parse data rows
+  while (i < text.length) {
+    const fields = parseLine();
+    if (fields.every(f => !f.trim())) continue; // skip blank lines
     const obj = {};
-    headers.forEach((h, i) => obj[h] = (fields[i] || '').trim());
-    return obj;
-  });
+    headers.forEach((h, idx) => obj[h] = (fields[idx] || '').trim());
+    rows.push(obj);
+  }
+
+  return rows;
 }
 
 export default function CurriculumAdmin() {
@@ -40,34 +65,29 @@ export default function CurriculumAdmin() {
   const [meta, setMeta] = useState({ subjects: [], stages: [] });
   const [filterSubject, setFilterSubject] = useState('');
   const [filterStage, setFilterStage] = useState('');
+  const [viewState, setViewState] = useState('NSW');
+  const [importState, setImportState] = useState('NSW');
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
-  const [syncing, setSyncing] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [toast, setToast] = useState('');
-  const [totalCount, setTotalCount] = useState(0);
+  const [clearing, setClearing] = useState(false);
+  const [toast, setToast] = useState(null);
   const fileRef = useRef();
 
   useEffect(() => { loadAll(); }, [filterSubject, filterStage]);
 
   async function loadAll() {
     const [outRes, metaRes] = await Promise.all([
-      api.get('/curriculum', { params: { subject: filterSubject || undefined, stage: filterStage || undefined } }),
+      api.get('/curriculum', { params: { subject: filterSubject||undefined, stage: filterStage||undefined } }),
       api.get('/curriculum/meta'),
     ]);
     setOutcomes(outRes.data);
-    setTotalCount(outRes.data.length);
     setMeta(metaRes.data);
   }
 
-  function showToast(msg) {
-    setToast(msg);
-    setTimeout(() => setToast(''), 3000);
-  }
-
-  function startEdit(outcome) {
-    setEditingId(outcome.id);
-    setEditForm({ ...outcome });
+  function showToast(msg, isError = false) {
+    setToast({ msg, isError });
+    setTimeout(() => setToast(null), 5000);
   }
 
   async function saveEdit() {
@@ -84,100 +104,129 @@ export default function CurriculumAdmin() {
     showToast('Deleted');
   }
 
-  async function syncACARA() {
-    setSyncing(true);
-    try {
-      await api.post('/curriculum/sync-acara');
-      showToast('ACARA sync started — refreshing in 30s...');
-      setTimeout(() => { loadAll(); setSyncing(false); }, 30000);
-    } catch (e) {
-      showToast('Sync failed: ' + e.message);
-      setSyncing(false);
-    }
-  }
-
   async function exportCSV() {
     const res = await api.get('/curriculum/export', { responseType: 'blob' });
     const url = URL.createObjectURL(new Blob([res.data]));
     const a = document.createElement('a'); a.href = url; a.download = 'curriculum_outcomes.csv'; a.click();
     URL.revokeObjectURL(url);
-    showToast('CSV exported ✓');
+    showToast('Exported ✓');
+  }
+
+  async function clearStateData() {
+    if (!confirm(`This will delete all ${importState} outcome data. Are you sure?`)) return;
+    setClearing(true);
+    try {
+      await api.delete(`/curriculum/clear/${importState}`);
+      showToast(`${importState} data cleared — ready for fresh import`);
+      loadAll();
+    } catch (err) {
+      showToast('Clear failed: ' + (err.response?.data?.error || err.message), true);
+    } finally { setClearing(false); }
   }
 
   async function handleImport(e) {
     const file = e.target.files[0];
     if (!file) return;
     setImporting(true);
+    showToast(`Reading ${file.name}...`);
     try {
       const text = await file.text();
       const rows = parseCSV(text);
-      if (rows.length === 0) { showToast('No valid rows found in CSV'); return; }
-      const res = await api.post('/curriculum/import', { rows });
-      showToast(`Imported ${res.data.imported} outcomes ✓`);
+      if (rows.length === 0) { showToast('No valid rows found in CSV', true); return; }
+      showToast(`Parsed ${rows.length} rows — uploading to server...`);
+      const res = await api.post('/curriculum/import', { state: importState, rows });
+      const d = res.data;
+      showToast(`✅ ${d.written} outcomes imported for ${importState}. Skipped duplicates: ${d.skipped}`);
       loadAll();
     } catch (err) {
-      showToast('Import failed: ' + err.message);
-    } finally {
-      setImporting(false);
-      e.target.value = '';
-    }
+      showToast('Import failed: ' + (err.response?.data?.error || err.message), true);
+    } finally { setImporting(false); e.target.value = ''; }
   }
 
+  const stateCodeKey = `${viewState.toLowerCase()}_code`;
   const sortedStages = [...meta.stages].sort(stageSort);
+  const stateCount = outcomes.filter(o => o[stateCodeKey]).length;
 
   return (
     <div className="animate-fade">
       {toast && (
-        <div className="toast" style={{ background: toast.includes('failed') ? 'var(--danger)' : 'var(--text)' }}>
-          {toast}
+        <div className="toast" style={{ background: toast.isError ? 'var(--danger)' : 'var(--text)', maxWidth: 520, lineHeight: 1.5 }}>
+          {toast.msg}
         </div>
       )}
 
       <div className="page-header">
         <div>
           <h1 className="page-title">Curriculum Outcomes</h1>
-          <p className="page-subtitle">{totalCount} outcomes loaded</p>
+          <p className="page-subtitle">{outcomes.length} outcomes in database</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-ghost btn-sm" onClick={syncACARA} disabled={syncing}>
-            <RefreshCw size={14} className={syncing ? 'spin' : ''} />
-            {syncing ? 'Syncing...' : 'Sync ACARA'}
+        <button className="btn btn-ghost btn-sm" onClick={exportCSV}>
+          <Download size={14} /> Export All CSV
+        </button>
+      </div>
+
+      {/* ── Import card ── */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 15, marginBottom: 6 }}>Import State Outcomes</h3>
+        <div style={{ fontSize: 13, color: 'var(--text-2)', marginBottom: 16, padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <AlertCircle size={15} color="var(--text-3)" style={{ flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <strong>CSV columns:</strong> <code>subject, outcome_code, stage, year_levels, description</code><br />
+            Descriptions with commas are fine — wrap them in quotes.<br />
+            Re-importing the same file is safe — it will update existing rows, not create duplicates.
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div className="input-group" style={{ minWidth: 220 }}>
+            <label>State</label>
+            <select className="select" value={importState} onChange={e => setImportState(e.target.value)}>
+              {STATES.map(s => <option key={s} value={s}>{STATE_LABELS[s]} ({s})</option>)}
+            </select>
+          </div>
+          <button className="btn btn-primary" onClick={() => fileRef.current.click()} disabled={importing}>
+            <Upload size={14} /> {importing ? 'Importing...' : `Import CSV for ${importState}`}
           </button>
-          <button className="btn btn-ghost btn-sm" onClick={exportCSV}>
-            <Download size={14} /> Export CSV
-          </button>
-          <button className="btn btn-primary btn-sm" onClick={() => fileRef.current.click()} disabled={importing}>
-            <Upload size={14} /> {importing ? 'Importing...' : 'Import CSV'}
+          <button className="btn btn-ghost btn-sm" onClick={clearStateData} disabled={clearing}
+            style={{ color: 'var(--danger)', borderColor: 'var(--danger)' }}>
+            <Trash2 size={13} /> {clearing ? 'Clearing...' : `Clear ${importState} data`}
           </button>
           <input ref={fileRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImport} />
         </div>
       </div>
 
-      {/* CSV format hint */}
-      <div className="card" style={{ marginBottom: 20, background: 'var(--surface-2)', padding: '12px 16px' }}>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-          <AlertCircle size={16} color="var(--text-3)" style={{ flexShrink: 0, marginTop: 2 }} />
-          <div style={{ fontSize: 12, color: 'var(--text-2)' }}>
-            <strong>CSV columns:</strong> acara_code, subject, stage, year_levels, description, nsw_code, vic_code, qld_code, sa_code, wa_code, tas_code, act_code, nt_code
-            <br />State code columns are optional — leave blank and the ACARA code will be used as fallback.
-          </div>
+      {/* ── View / filter ── */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="input-group" style={{ minWidth: 200 }}>
+          <label>View state codes</label>
+          <select className="select" value={viewState} onChange={e => setViewState(e.target.value)}>
+            {STATES.map(s => <option key={s} value={s}>{STATE_LABELS[s]} ({s})</option>)}
+          </select>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-        <select className="select" style={{ width: 200 }} value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
-          <option value="">All Subjects</option>
-          {meta.subjects.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <select className="select" style={{ width: 200 }} value={filterStage} onChange={e => setFilterStage(e.target.value)}>
-          <option value="">All Stages</option>
-          {sortedStages.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
+        <div className="input-group" style={{ minWidth: 160 }}>
+          <label>Subject</label>
+          <select className="select" value={filterSubject} onChange={e => setFilterSubject(e.target.value)}>
+            <option value="">All Subjects</option>
+            {meta.subjects.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="input-group" style={{ minWidth: 150 }}>
+          <label>Stage</label>
+          <select className="select" value={filterStage} onChange={e => setFilterStage(e.target.value)}>
+            <option value="">All Stages</option>
+            {sortedStages.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
         {(filterSubject || filterStage) && (
-          <button className="btn btn-ghost btn-sm" onClick={() => { setFilterSubject(''); setFilterStage(''); }}>
+          <button className="btn btn-ghost btn-sm" style={{ marginBottom: 2 }}
+            onClick={() => { setFilterSubject(''); setFilterStage(''); }}>
             <X size={13} /> Clear
           </button>
+        )}
+        {outcomes.length > 0 && (
+          <div style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 2 }}>
+            {stateCount} of {outcomes.length} have {viewState} codes
+          </div>
         )}
       </div>
 
@@ -185,19 +234,18 @@ export default function CurriculumAdmin() {
         <div className="empty-state">
           <div className="empty-state-icon">📚</div>
           <h3>No outcomes loaded</h3>
-          <p>Import a CSV or click Sync ACARA to get started</p>
+          <p>Select a state and import a CSV file above to get started</p>
         </div>
       ) : (
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: 'var(--surface-2)', borderBottom: '2px solid var(--border)' }}>
-                <th style={th}>ACARA Code</th>
                 <th style={th}>Subject</th>
                 <th style={th}>Stage</th>
                 <th style={th}>Years</th>
-                <th style={{ ...th, minWidth: 260 }}>Description</th>
-                {STATES.map(s => <th key={s} style={{ ...th, minWidth: 80 }}>{STATE_LABELS[s]}</th>)}
+                <th style={{ ...th, minWidth: 280 }}>Description</th>
+                <th style={{ ...th, minWidth: 150 }}>{viewState} Code</th>
                 <th style={th}>Actions</th>
               </tr>
             </thead>
@@ -205,46 +253,43 @@ export default function CurriculumAdmin() {
               {outcomes.map(outcome => {
                 const isEditing = editingId === outcome.id;
                 const form = isEditing ? editForm : outcome;
+                const stateCode = outcome[stateCodeKey];
+
                 return (
-                  <tr key={outcome.id} style={{ borderBottom: '1px solid var(--border)', background: isEditing ? 'var(--primary-pale)' : 'var(--surface)' }}>
+                  <tr key={outcome.id} style={{
+                    borderBottom: '1px solid var(--border)',
+                    background: isEditing ? 'var(--primary-pale)' : stateCode ? 'var(--surface)' : 'var(--surface-2)',
+                  }}>
                     <td style={td}>
                       {isEditing
-                        ? <input className="input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 100 }} value={form.acara_code} onChange={e => setEditForm({...editForm, acara_code: e.target.value})} />
-                        : <code style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 600 }}>{outcome.acara_code}</code>
-                      }
-                    </td>
-                    <td style={td}>
-                      {isEditing
-                        ? <input className="input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 90 }} value={form.subject} onChange={e => setEditForm({...editForm, subject: e.target.value})} />
-                        : outcome.subject
-                      }
+                        ? <input className="input" style={inp} value={form.subject} onChange={e => setEditForm({...editForm, subject: e.target.value})} />
+                        : <strong style={{ fontSize: 12 }}>{outcome.subject}</strong>}
                     </td>
                     <td style={td}>
                       {isEditing
-                        ? <input className="input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 80 }} value={form.stage} onChange={e => setEditForm({...editForm, stage: e.target.value})} />
-                        : <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{outcome.stage}</span>
-                      }
+                        ? <input className="input" style={inp} value={form.stage} onChange={e => setEditForm({...editForm, stage: e.target.value})} />
+                        : <span style={{ fontSize: 12, color: 'var(--text-2)' }}>{outcome.stage}</span>}
                     </td>
                     <td style={td}>
                       {isEditing
-                        ? <input className="input" style={{ padding: '4px 8px', fontSize: 12, minWidth: 50 }} value={form.year_levels} onChange={e => setEditForm({...editForm, year_levels: e.target.value})} />
-                        : <span className="badge" style={{ background: 'var(--primary-pale)', color: 'var(--primary)', fontSize: 11 }}>Yr {outcome.year_levels}</span>
-                      }
+                        ? <input className="input" style={{ ...inp, width: 55 }} value={form.year_levels} onChange={e => setEditForm({...editForm, year_levels: e.target.value})} />
+                        : <span className="badge" style={{ background: 'var(--primary-pale)', color: 'var(--primary)', fontSize: 11 }}>Yr {outcome.year_levels}</span>}
                     </td>
-                    <td style={{ ...td, maxWidth: 300 }}>
+                    <td style={{ ...td, maxWidth: 320 }}>
                       {isEditing
-                        ? <textarea className="textarea" style={{ padding: '4px 8px', fontSize: 12, minWidth: 240, minHeight: 60 }} value={form.description} onChange={e => setEditForm({...editForm, description: e.target.value})} />
-                        : <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>{outcome.description}</span>
-                      }
+                        ? <textarea className="textarea" style={{ fontSize: 12, minWidth: 220, minHeight: 52 }} value={form.description} onChange={e => setEditForm({...editForm, description: e.target.value})} />
+                        : <span style={{ fontSize: 12, color: 'var(--text-2)', lineHeight: 1.4 }}>{outcome.description}</span>}
                     </td>
-                    {STATES.map(s => (
-                      <td key={s} style={td}>
-                        {isEditing
-                          ? <input className="input" style={{ padding: '4px 6px', fontSize: 12, minWidth: 70 }} value={form[`${s}_code`] || ''} onChange={e => setEditForm({...editForm, [`${s}_code`]: e.target.value})} placeholder="—" />
-                          : <span style={{ fontSize: 12, color: outcome[`${s}_code`] ? 'var(--text)' : 'var(--text-3)' }}>{outcome[`${s}_code`] || '—'}</span>
-                        }
-                      </td>
-                    ))}
+                    <td style={td}>
+                      {isEditing
+                        ? <input className="input" style={{ ...inp, width: 130 }}
+                            value={form[stateCodeKey] || ''}
+                            onChange={e => setEditForm({...editForm, [stateCodeKey]: e.target.value})}
+                            placeholder="e.g. EN3-RECOM-01" />
+                        : stateCode
+                          ? <code style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700, background: 'var(--primary-pale)', padding: '2px 8px', borderRadius: 4 }}>{stateCode}</code>
+                          : <span style={{ fontSize: 12, color: 'var(--text-3)' }}>—</span>}
+                    </td>
                     <td style={{ ...td, whiteSpace: 'nowrap' }}>
                       {isEditing ? (
                         <div style={{ display: 'flex', gap: 4 }}>
@@ -253,7 +298,7 @@ export default function CurriculumAdmin() {
                         </div>
                       ) : (
                         <div style={{ display: 'flex', gap: 4 }}>
-                          <button className="btn btn-ghost btn-sm" onClick={() => startEdit(outcome)} style={{ padding: '4px 8px', fontSize: 11 }}>Edit</button>
+                          <button className="btn btn-ghost btn-sm" onClick={() => { setEditingId(outcome.id); setEditForm({...outcome}); }} style={{ padding: '4px 8px', fontSize: 11 }}>Edit</button>
                           <button className="btn btn-ghost btn-sm" onClick={() => deleteOutcome(outcome.id)} style={{ padding: '4px 8px', color: 'var(--danger)' }}><Trash2 size={12} /></button>
                         </div>
                       )}
@@ -269,5 +314,6 @@ export default function CurriculumAdmin() {
   );
 }
 
-const th = { padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap' };
-const td = { padding: '8px 12px', verticalAlign: 'top' };
+const th  = { padding: '10px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--text-2)', whiteSpace: 'nowrap' };
+const td  = { padding: '8px 12px', verticalAlign: 'top' };
+const inp = { padding: '4px 8px', fontSize: 12, minWidth: 80 };
