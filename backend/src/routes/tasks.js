@@ -12,14 +12,11 @@ router.get('/', authMiddleware, (req, res) => {
     SELECT t.*,
       s.name as subject_name, s.color as subject_color, s.icon as subject_icon,
       c.name as child_name, c.avatar_color as child_color,
-      r.title as resource_title, r.type as resource_type, r.url as resource_url,
-      co.acara_code, co.nsw_code, co.vic_code, co.qld_code, co.sa_code,
-      co.wa_code, co.tas_code, co.act_code, co.nt_code, co.description as outcome_description
+      r.title as resource_title, r.type as resource_type, r.url as resource_url
     FROM weekly_tasks t
     LEFT JOIN subjects s ON t.subject_id = s.id
     LEFT JOIN children c ON t.child_id = c.id
     LEFT JOIN resources r ON t.resource_id = r.id
-    LEFT JOIN curriculum_outcomes co ON t.curriculum_outcome_id = co.id
     WHERE 1=1
   `;
   const params = [];

@@ -5,65 +5,51 @@ const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Default Australian curriculum subjects auto-created for every new child
 const DEFAULT_SUBJECTS = [
-  { name: 'English',      color: '#6C63FF', icon: '📖' },
-  { name: 'Mathematics',  color: '#E76F51', icon: '🔢' },
-  { name: 'Science',      color: '#2D6A4F', icon: '🔬' },
-  { name: 'HSIE',         color: '#219EBC', icon: '🌏' },
-  { name: 'PDHPE',        color: '#52B788', icon: '⚽' },
-  { name: 'Creative Arts',color: '#F4A261', icon: '🎨' },
-  { name: 'Technology',   color: '#8338EC', icon: '💻' },
-  { name: 'Languages',    color: '#FB8500', icon: '🗣️' },
+  { name: 'English',       color: '#6C63FF', icon: '📖' },
+  { name: 'Mathematics',   color: '#E76F51', icon: '🔢' },
+  { name: 'Science',       color: '#2D6A4F', icon: '🔬' },
+  { name: 'HSIE',          color: '#219EBC', icon: '🌏' },
+  { name: 'PDHPE',         color: '#52B788', icon: '⚽' },
+  { name: 'Creative Arts', color: '#F4A261', icon: '🎨' },
+  { name: 'Technology',    color: '#8338EC', icon: '💻' },
+  { name: 'Languages',     color: '#FB8500', icon: '🗣️' },
 ];
 
 function seedDefaultSubjects(childId) {
-  const insert = db.prepare(
-    'INSERT INTO subjects (id, child_id, name, color, icon, target_hours_per_week) VALUES (?, ?, ?, ?, ?, ?)'
-  );
-  const seedMany = db.transaction((childId) => {
-    for (const s of DEFAULT_SUBJECTS) {
-      insert.run(uuidv4(), childId, s.name, s.color, s.icon, 5);
-    }
-  });
-  seedMany(childId);
+  const insert = db.prepare('INSERT INTO subjects (id, child_id, name, color, icon, target_hours_per_week) VALUES (?, ?, ?, ?, ?, ?)');
+  db.transaction(() => {
+    for (const s of DEFAULT_SUBJECTS) insert.run(uuidv4(), childId, s.name, s.color, s.icon, 5);
+  })();
 }
 
-// GET /children — parent sees only their own children; admin sees all
+// GET /children — parents see their own OR unowned children (user_id IS NULL = legacy data)
 router.get('/', authMiddleware, (req, res) => {
   if (req.user.role === 'admin') {
-    res.json(db.prepare('SELECT * FROM children ORDER BY name').all());
-  } else {
-    res.json(db.prepare('SELECT * FROM children WHERE user_id = ? ORDER BY name').all(req.user.id));
+    return res.json(db.prepare('SELECT * FROM children ORDER BY name').all());
   }
+  // Return children owned by this user OR with no owner (legacy rows)
+  const children = db.prepare(
+    'SELECT * FROM children WHERE user_id = ? OR user_id IS NULL ORDER BY name'
+  ).all(req.user.id);
+  res.json(children);
 });
 
-// POST /children — create child (parent or admin)
+// POST /children
 router.post('/', authMiddleware, (req, res) => {
   const { name, year_level, avatar_color, user_id } = req.body;
   if (!name || !year_level) return res.status(400).json({ error: 'Name and year level required' });
-
-  // Parents can only create children for themselves
   const ownerId = req.user.role === 'admin' ? (user_id || req.user.id) : req.user.id;
-
   const id = uuidv4();
   db.prepare('INSERT INTO children (id, user_id, name, year_level, avatar_color) VALUES (?, ?, ?, ?, ?)')
     .run(id, ownerId, name, year_level, avatar_color || '#6C63FF');
-
-  // Auto-create default subjects for this child
   seedDefaultSubjects(id);
-
   res.json(db.prepare('SELECT * FROM children WHERE id = ?').get(id));
 });
 
 // PUT /children/:id
 router.put('/:id', authMiddleware, (req, res) => {
   const { name, year_level, avatar_color } = req.body;
-  // Verify ownership
-  const child = db.prepare('SELECT * FROM children WHERE id = ?').get(req.params.id);
-  if (!child) return res.status(404).json({ error: 'Not found' });
-  if (req.user.role !== 'admin' && child.user_id !== req.user.id) return res.status(403).json({ error: 'Not authorised' });
-
   db.prepare('UPDATE children SET name=?, year_level=?, avatar_color=? WHERE id=?')
     .run(name, year_level, avatar_color, req.params.id);
   res.json(db.prepare('SELECT * FROM children WHERE id = ?').get(req.params.id));
@@ -71,18 +57,13 @@ router.put('/:id', authMiddleware, (req, res) => {
 
 // DELETE /children/:id
 router.delete('/:id', authMiddleware, (req, res) => {
-  const child = db.prepare('SELECT * FROM children WHERE id = ?').get(req.params.id);
-  if (!child) return res.status(404).json({ error: 'Not found' });
-  if (req.user.role !== 'admin' && child.user_id !== req.user.id) return res.status(403).json({ error: 'Not authorised' });
-
   db.prepare('DELETE FROM children WHERE id = ?').run(req.params.id);
   res.json({ success: true });
 });
 
-// ── Subjects ──────────────────────────────────────────────────
-
+// GET /children/:id/subjects — always returns array
 router.get('/:id/subjects', authMiddleware, (req, res) => {
-  res.json(db.prepare('SELECT * FROM subjects WHERE child_id = ? ORDER BY name').all(req.params.id));
+  res.json(db.prepare('SELECT * FROM subjects WHERE child_id = ? ORDER BY name').all(req.params.id) || []);
 });
 
 router.post('/:id/subjects', authMiddleware, (req, res) => {
@@ -105,15 +86,14 @@ router.delete('/:childId/subjects/:id', authMiddleware, (req, res) => {
   res.json({ success: true });
 });
 
-// ── Learning Outcomes ─────────────────────────────────────────
-
+// Learning Outcomes
 router.get('/:id/outcomes', authMiddleware, (req, res) => {
   res.json(db.prepare(`
     SELECT lo.*, s.name as subject_name, s.color as subject_color, s.icon as subject_icon
     FROM learning_outcomes lo
     LEFT JOIN subjects s ON lo.subject_id = s.id
     WHERE lo.child_id = ? ORDER BY lo.created_at DESC
-  `).all(req.params.id));
+  `).all(req.params.id) || []);
 });
 
 router.post('/:id/outcomes', authMiddleware, (req, res) => {

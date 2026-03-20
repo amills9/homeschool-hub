@@ -13,25 +13,13 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 // ── Centred Modal ─────────────────────────────────────────────
 function CentredModal({ onClose, children, maxWidth = 560 }) {
   return (
-    <div onClick={e => e.target === e.currentTarget && onClose()}
-      style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
-        backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
-        justifyContent: 'center', zIndex: 1000, padding: '20px 16px', overflowY: 'auto',
-      }}>
-      <div style={{
-        background: 'var(--surface)', borderRadius: 'var(--radius-lg)',
-        padding: 32, width: '100%', maxWidth,
-        maxHeight: 'calc(100vh - 40px)', overflowY: 'auto',
-        boxShadow: '0 12px 40px rgba(0,0,0,0.2)', margin: 'auto',
-        animation: 'scaleIn 0.2s ease',
-      }}>
+    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth, width: '100%' }}>
         {children}
       </div>
     </div>
   );
 }
-
 // ── Photo Upload ──────────────────────────────────────────────
 function PhotoUploadModal({ task, onClose, onUploaded }) {
   const [preview, setPreview] = useState(null);
@@ -157,7 +145,7 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
   const [viewPhoto, setViewPhoto] = useState(null);
 
   useEffect(() => {
-    api.get(`/photos?task_id=${task.id}`).then(r => setPhotos(r.data)).catch(() => {});
+    api.get(`/photos?task_id=${task.id}`).then(r => setPhotos(Array.isArray(r.data) ? r.data : [])).catch(() => {});
   }, [task.id]);
 
   return (
@@ -221,7 +209,7 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
 }
 
 // ── Task Form ─────────────────────────────────────────────────
-function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit, onClose, isEdit }) {
+function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onClose, isEdit }) {
   const { user } = useAuth();
   const [form, setForm] = useState(initial);
   const [outcomes, setOutcomes] = useState([]);
@@ -273,7 +261,7 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
             <label>Child</label>
             <select className="select" value={form.child_id}
               onChange={e => setForm({ ...form, child_id: e.target.value, subject_id: '', resource_id: '', curriculum_outcome_id: '' })}>
-              {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {(Array.isArray(kids) ? kids : []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         )}
@@ -381,17 +369,17 @@ function TaskForm({ initial, children, subjects, resources, weekStart, onSubmit,
 }
 
 // ── Print Preview ─────────────────────────────────────────────
-function PrintPreview({ tasks, children, weekStart, onClose }) {
+function PrintPreview({ tasks, kids, weekStart, onClose }) {
   const weekLabel = formatWeekRange(weekStart);
   const [excluded, setExcluded] = useState(new Set());
-  const [selectedChildren, setSelectedChildren] = useState(new Set(children.map(c => c.id)));
+  const [selectedChildren, setSelectedChildren] = useState(new Set(kids.map(c => c.id)));
 
   function toggleTask(id) { setExcluded(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
   function toggleChild(id) { setSelectedChildren(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; }); }
 
   function doPrint() {
     const pw = window.open('', '_blank', 'width=1200,height=800');
-    const kids = children.filter(c => selectedChildren.has(c.id));
+    const printKids = kids.filter(c => selectedChildren.has(c.id));
     let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Weekly Plan</title>
     <style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font-family:Arial,sans-serif;font-size:10px}
     .s{margin-bottom:20px;page-break-after:always}.s:last-child{page-break-after:auto}
@@ -402,7 +390,7 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
     .db{border:1px solid #e2ddd8;border-top:none;border-radius:0 0 4px 4px;min-height:90px;padding:4px}
     .t{padding:3px 5px;margin-bottom:3px;border-radius:3px;border-left:3px solid;font-size:9px}
     .nt{color:#ccc;font-size:9px;padding:8px 2px;text-align:center}</style></head><body>`;
-    for (const child of kids) {
+    for (const child of printKids) {
       const ct = tasks.filter(t => t.child_id === child.id && !excluded.has(t.id));
       html += `<div class="s"><div class="h" style="border-bottom:3px solid ${child.avatar_color};padding-bottom:8px">
         <div class="av" style="background:${child.avatar_color}">${child.name[0]}</div>
@@ -433,7 +421,7 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-        {children.map(c => (
+        {kids.map(c => (
           <button key={c.id} onClick={() => toggleChild(c.id)}
             style={{ padding: '5px 14px', borderRadius: 20, border: `2px solid ${c.avatar_color}`, background: selectedChildren.has(c.id) ? c.avatar_color : 'transparent', color: selectedChildren.has(c.id) ? 'white' : c.avatar_color, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}>
             {c.name}
@@ -441,7 +429,7 @@ function PrintPreview({ tasks, children, weekStart, onClose }) {
         ))}
       </div>
       <div style={{ overflowY: 'auto', maxHeight: '60vh' }}>
-        {children.filter(c => selectedChildren.has(c.id)).map(child => {
+        {kids.filter(c => selectedChildren.has(c.id)).map(child => {
           const ct = tasks.filter(t => t.child_id === child.id);
           return (
             <div key={child.id} style={{ marginBottom: 24 }}>
@@ -513,16 +501,16 @@ export default function WeeklyPlanner() {
         api.get('/resources'),
       ]);
       const kids = childRes.data || [];
-      setChildren(kids);
-      setResources(resourceRes.data || []);
+      setChildren(Array.isArray(kids) ? kids : []);
+      setResources(Array.isArray(resourceRes.data) ? resourceRes.data : []);
       if (kids.length > 0) {
         const subjectArrays = await Promise.all(kids.map(k => api.get(`/children/${k.id}/subjects`).catch(() => ({ data: [] }))));
-        setSubjects(subjectArrays.flatMap(r => r.data || []));
+        setSubjects(subjectArrays.flatMap(r => Array.isArray(r.data) ? r.data : []));
       }
       const params = new URLSearchParams({ week_start: weekStart });
       if (selectedChild !== 'all') params.set('child_id', selectedChild);
       const tasksRes = await api.get(`/tasks?${params}`);
-      setTasks(tasksRes.data || []);
+      setTasks(Array.isArray(tasksRes.data) ? tasksRes.data : []);
     } catch (err) {
       console.error('WeeklyPlanner error:', err);
       setError('Could not load planner data. Please refresh the page.');
@@ -586,7 +574,7 @@ export default function WeeklyPlanner() {
         </div>
         <select className="select" style={{ width: 160 }} value={selectedChild} onChange={e => setSelectedChild(e.target.value)}>
           <option value="all">All Children</option>
-          {children.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+          {(Array.isArray(children) ? children : []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
@@ -651,9 +639,9 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {showModal && <TaskForm initial={addInitial} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} />}
-      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} children={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
-      {showPrint && <PrintPreview tasks={tasks} children={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
+      {showModal && <TaskForm initial={addInitial} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} />}
+      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
+      {showPrint && <PrintPreview tasks={tasks} kids={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
     </div>
   );
 }
