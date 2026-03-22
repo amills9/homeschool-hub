@@ -154,6 +154,12 @@ function initializeDatabase() {
     db.exec("ALTER TABLE weekly_tasks ADD COLUMN curriculum_outcome_id TEXT");
   }
 
+  // Add user_id to resources if missing
+  const resCols = db.prepare("PRAGMA table_info(resources)").all().map(c => c.name);
+  if (!resCols.includes("user_id")) {
+    db.exec("ALTER TABLE resources ADD COLUMN user_id TEXT");
+  }
+
   // Seed admin user if not exists
   const adminExists = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
   if (!adminExists) {

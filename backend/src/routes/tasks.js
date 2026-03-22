@@ -5,9 +5,27 @@ const { authMiddleware } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Get tasks for a specific week
+// Get tasks for a specific week — only return tasks for the logged-in user's children
 router.get('/', authMiddleware, (req, res) => {
   const { week_start, child_id } = req.query;
+
+  // Get accessible child IDs for this user
+  let accessibleIds;
+  if (req.user.role === 'admin') {
+    accessibleIds = db.prepare('SELECT id FROM children').all().map(c => c.id);
+  } else {
+    accessibleIds = db.prepare('SELECT id FROM children WHERE user_id = ?').all(req.user.id).map(c => c.id);
+  }
+  if (accessibleIds.length === 0) return res.json([]);
+
+  // If a specific child_id is requested, verify it belongs to this user
+  if (child_id && !accessibleIds.includes(child_id)) {
+    return res.status(403).json({ error: 'Not authorised' });
+  }
+
+  const targetIds = child_id ? [child_id] : accessibleIds;
+  const placeholders = targetIds.map(() => '?').join(',');
+
   let query = `
     SELECT t.*,
       s.name as subject_name, s.color as subject_color, s.icon as subject_icon,
@@ -17,11 +35,10 @@ router.get('/', authMiddleware, (req, res) => {
     LEFT JOIN subjects s ON t.subject_id = s.id
     LEFT JOIN children c ON t.child_id = c.id
     LEFT JOIN resources r ON t.resource_id = r.id
-    WHERE 1=1
+    WHERE t.child_id IN (${placeholders})
   `;
-  const params = [];
+  const params = [...targetIds];
   if (week_start) { query += ' AND t.week_start = ?'; params.push(week_start); }
-  if (child_id) { query += ' AND t.child_id = ?'; params.push(child_id); }
   query += ' ORDER BY t.day_of_week, t.created_at';
   res.json(db.prepare(query).all(...params));
 });

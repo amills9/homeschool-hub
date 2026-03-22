@@ -131,6 +131,13 @@ router.post('/upload', authMiddleware, async (req, res) => {
 router.get('/', authMiddleware, (req, res) => {
   const { task_id } = req.query;
   if (!task_id) return res.status(400).json({ error: 'task_id required' });
+  // Verify task belongs to this user's children
+  const task = db.prepare(`
+    SELECT t.* FROM weekly_tasks t
+    JOIN children c ON t.child_id = c.id
+    WHERE t.id = ? AND (c.user_id = ? OR ? = 'admin')
+  `).get(task_id, req.user.id, req.user.role);
+  if (!task) return res.status(403).json({ error: 'Not authorised' });
   res.json(db.prepare('SELECT * FROM task_photos WHERE task_id = ? ORDER BY created_at ASC').all(task_id));
 });
 

@@ -18,6 +18,7 @@ app.use('/api/tasks',      require('./routes/tasks'));
 app.use('/api/resources',  require('./routes/resources'));
 app.use('/api/settings',   require('./routes/settings'));
 app.use('/api/curriculum', require('./routes/curriculum'));
+app.use('/api/photos',     require('./routes/photos'));
 
 if (process.env.NODE_ENV === 'production') {
   app.use(express.static(path.join(__dirname, '../../frontend/dist')));
