@@ -54,7 +54,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
 /* Layout */
 .app-layout {
   display: flex;
-  min-height: 100vh;
+  height: 100vh;
 }
 
 .sidebar {
@@ -73,7 +73,8 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
   margin-left: 240px;
   flex: 1;
   padding: 32px;
-  min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 /* Cards */
@@ -184,7 +185,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; }
   background: rgba(0,0,0,0.4);
   backdrop-filter: blur(4px);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
   z-index: 1000;
   overflow-y: auto;

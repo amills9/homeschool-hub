@@ -166,7 +166,7 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
           {task.is_completed && <Check size={12} color="white" strokeWidth={3} />}
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500, color: task.is_completed ? 'var(--text-3)' : 'var(--text)', textDecoration: task.is_completed ? 'line-through' : 'none' }}>
+          <div style={{ fontSize: 13, fontWeight: 500, color: task.is_completed ? 'var(--text-3)' : 'var(--text)', textDecoration: task.is_completed ? 'line-through' : 'none', wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
             {task.title}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
@@ -385,7 +385,7 @@ function PrintPreview({ tasks, kids, weekStart, onClose }) {
     .s{margin-bottom:20px;page-break-after:always}.s:last-child{page-break-after:auto}
     .h{display:flex;align-items:center;gap:10px;margin-bottom:10px;padding-bottom:8px}
     .av{width:34px;height:34px;border-radius:50%;color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px}
-    .g{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+    .g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
     .dh{padding:4px 6px;border-radius:4px 4px 0 0;font-weight:700;font-size:10px;color:white}
     .db{border:1px solid #e2ddd8;border-top:none;border-radius:0 0 4px 4px;min-height:90px;padding:4px}
     .t{padding:3px 5px;margin-bottom:3px;border-radius:3px;border-left:3px solid;font-size:9px}
@@ -438,7 +438,7 @@ function PrintPreview({ tasks, kids, weekStart, onClose }) {
                 <span style={{ fontWeight: 700, fontSize: 16 }}>{child.name}</span>
                 <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{weekLabel}</span>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 6 }}>
                 {DAYS.map(day => {
                   const dt = ct.filter(t => t.day_of_week === day);
                   const wknd = day === 'Saturday' || day === 'Sunday';
@@ -579,19 +579,19 @@ export default function WeeklyPlanner() {
       </div>
 
       {/* Desktop — 7 col grid, no inline display style so CSS controls it */}
-      <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7,1fr)', gap: 10 }}>
+      <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10 }}>
         {days.map(day => {
           const dt = tasks.filter(t => t.day_of_week === day.name);
           const done = dt.filter(t => t.is_completed).length;
           const wknd = day.name === 'Saturday' || day.name === 'Sunday';
           return (
-            <div key={day.name} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div key={day.name} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 }}>
               <div style={{ padding: '10px 12px', background: wknd ? 'var(--surface-2)' : 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', borderBottom: `3px solid ${wknd ? 'var(--border)' : 'var(--primary)'}` }}>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{day.short}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{day.date}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{done}/{dt.length}</div>
               </div>
-              <div style={{ flex: 1 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 {loading ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
                   : dt.length === 0 ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
                   : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
