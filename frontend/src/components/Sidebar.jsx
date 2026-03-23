@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LayoutDashboard, CalendarDays, Settings, LogOut, BookOpen, Library, Menu, X, Cog, FileBarChart } from 'lucide-react';
+import { LayoutDashboard, CalendarDays, Settings, LogOut, BookOpen, Library, Menu, X, Cog, FileBarChart, Image } from 'lucide-react';
 
 const NAV_ITEMS = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/weekly',        icon: CalendarDays,    label: 'Weekly Planner' },
   { to: '/resources',     icon: Library,         label: 'Resources' },
+  { to: '/gallery',       icon: Image,          label: 'Photo Gallery' },
   { to: '/yearly-report', icon: FileBarChart,    label: 'Yearly Report' },
   { to: '/setup',         icon: Settings,        label: 'Setup' },
   { to: '/account',       icon: Cog,             label: 'Account' },
@@ -68,12 +69,10 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="sidebar sidebar-desktop-panel" style={{ background: 'var(--sidebar-color, var(--surface))' }}>
         <NavContent />
       </aside>
 
-      {/* Mobile top bar */}
       <div className="mobile-topbar">
         <button className="hamburger-btn" onClick={() => setMobileOpen(true)}>
           <Menu size={22} />
@@ -87,7 +86,6 @@ export default function Sidebar() {
         <div style={{ width: 36 }} />
       </div>
 
-      {/* Mobile drawer */}
       {mobileOpen && (
         <>
           <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} />

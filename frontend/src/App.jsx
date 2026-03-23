@@ -16,6 +16,7 @@ import Setup from './pages/Setup';
 import Account from './pages/Account';
 import YearlyReport from './pages/YearlyReport';
 import CurriculumAdmin from './pages/CurriculumAdmin';
+import PhotoGallery from './pages/PhotoGallery';
 
 function AdminLayout({ children }) {
   const { user } = useAuth();
@@ -60,12 +61,13 @@ function AppRoutes() {
       } />
 
       {/* Admin-only */}
-      <Route path="/admin-settings"  element={<AdminLayout><AdminSettings /></AdminLayout>} />
+      <Route path="/admin-settings"   element={<AdminLayout><AdminSettings /></AdminLayout>} />
       <Route path="/admin-curriculum" element={<AdminLayout><CurriculumAdmin /></AdminLayout>} />
 
       {/* Parent routes */}
       <Route path="/weekly"        element={<ParentLayout><WeeklyPlanner /></ParentLayout>} />
       <Route path="/resources"     element={<ParentLayout><Resources /></ParentLayout>} />
+      <Route path="/gallery"       element={<ParentLayout><PhotoGallery /></ParentLayout>} />
       <Route path="/setup"         element={<ParentLayout><Setup /></ParentLayout>} />
       <Route path="/account"       element={<ParentLayout><Account /></ParentLayout>} />
       <Route path="/yearly-report" element={<ParentLayout><YearlyReport /></ParentLayout>} />
