@@ -103,7 +103,8 @@ function initializeDatabase() {
       accent_color TEXT,
       sidebar_color TEXT,
       font_style TEXT,
-      display_name TEXT
+      display_name TEXT,
+      school_name TEXT DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS task_photos (
@@ -158,6 +159,12 @@ function initializeDatabase() {
   const resCols = db.prepare("PRAGMA table_info(resources)").all().map(c => c.name);
   if (!resCols.includes("user_id")) {
     db.exec("ALTER TABLE resources ADD COLUMN user_id TEXT");
+  }
+
+  // Add school_name to user_preferences if missing
+  const prefCols = db.prepare("PRAGMA table_info(user_preferences)").all().map(c => c.name);
+  if (!prefCols.includes("school_name")) {
+    db.exec("ALTER TABLE user_preferences ADD COLUMN school_name TEXT DEFAULT ''");
   }
 
   // Seed admin user if not exists

@@ -546,6 +546,8 @@ function PrintPreview({ tasks, kids, weekStart, onClose }) {
 
 // ── Main ──────────────────────────────────────────────────────
 export default function WeeklyPlanner() {
+  const { preferences } = useAuth();
+  const schoolName = preferences?.school_name || '';
   const [weekStart, setWeekStart] = useState(getWeekStart());
   const [tasks, setTasks] = useState([]);
   const [children, setChildren] = useState([]);
@@ -635,6 +637,7 @@ export default function WeeklyPlanner() {
     <div className="animate-fade">
       <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
+          {schoolName && <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}>{schoolName}</div>}
           <h1 className="page-title">Weekly Planner</h1>
           <p className="page-subtitle">{formatWeekRange(weekStart)}</p>
         </div>

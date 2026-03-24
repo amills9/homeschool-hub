@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { getWeekStart } from '../utils/dates';
 import { CheckCircle2, Circle, Target, Clock, Star, Sun, ChevronDown, ChevronUp } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 function todayName() { return DAYS[new Date().getDay()]; }
@@ -221,6 +222,8 @@ function getSavedOpenState() {
 }
 
 export default function Dashboard() {
+  const { preferences } = useAuth();
+  const schoolName = preferences?.school_name || '';
   const [children, setChildren] = useState([]);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
@@ -298,7 +301,12 @@ export default function Dashboard() {
 
   return (
     <div className="animate-fade">
-      <div className="page-header"><div><h1 className="page-title">Dashboard</h1><p className="page-subtitle">Learning overview & progress</p></div></div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">{schoolName || 'Dashboard'}</h1>
+          <p className="page-subtitle">Learning overview & progress</p>
+        </div>
+      </div>
       {children.map((child, i) => {
         // Use saved state if exists, otherwise first child open by default
         const savedOpen = openState[child.id];
