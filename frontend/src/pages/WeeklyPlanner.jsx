@@ -559,13 +559,7 @@ export default function WeeklyPlanner() {
   const [addDay, setAddDay] = useState(null);
   const [editTask, setEditTask] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [expandedDay, setExpandedDay] = useState(null);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const idx = new Date().getDay();
-    setExpandedDay(DAYS[idx === 0 ? 6 : idx - 1]);
-  }, []);
 
   useEffect(() => { loadAll(); }, [weekStart, selectedChild]);
 
@@ -688,42 +682,8 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {/* Mobile — accordion */}
-      <div className="planner-mobile" style={{ flexDirection: 'column', gap: 10 }}>
-        {days.map(day => {
-          const dt = tasks.filter(t => t.day_of_week === day.name);
-          const done = dt.filter(t => t.is_completed).length;
-          const isOpen = expandedDay === day.name;
-          const wknd = day.name === 'Saturday' || day.name === 'Sunday';
-          return (
-            <div key={day.name} style={{ borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', overflow: 'hidden' }}>
-              <div onClick={() => setExpandedDay(isOpen ? null : day.name)}
-                style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', background: wknd ? 'var(--surface-2)' : 'var(--surface)', cursor: 'pointer', borderBottom: isOpen ? `2px solid ${wknd ? 'var(--border)' : 'var(--primary)'}` : 'none' }}>
-                <div style={{ flex: 1 }}>
-                  <span style={{ fontWeight: 700, fontSize: 15 }}>{day.name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--text-3)', marginLeft: 10 }}>{day.date}</span>
-                </div>
-                <span style={{ fontSize: 12, color: done === dt.length && dt.length > 0 ? 'var(--primary)' : 'var(--text-3)', marginRight: 10 }}>{done}/{dt.length}</span>
-                <span style={{ fontSize: 18, color: 'var(--text-3)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
-              </div>
-              {isOpen && (
-                <div style={{ padding: '8px 12px 12px', background: 'var(--surface-2)' }}>
-                  {/* Add button at TOP on mobile too */}
-                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 13, marginBottom: 8 }}
-                    onClick={() => { setAddDay(day.name); setShowModal(true); }}>
-                    <Plus size={13} /> Add task
-                  </button>
-                  {loading ? <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
-                    : dt.length === 0 ? <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
-                    : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
 
-      {showModal && <TaskForm initial={addInitial} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} onResourceSaved={loadAll} />}
+            {showModal && <TaskForm initial={addInitial} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} onResourceSaved={loadAll} />}
       {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} onResourceSaved={loadAll} />}
       {showPrint && <PrintPreview tasks={tasks} kids={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
     </div>
