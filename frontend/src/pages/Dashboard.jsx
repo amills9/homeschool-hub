@@ -87,8 +87,14 @@ function Pill({ color, bg, label }) {
   return <span style={{ padding: '3px 10px', borderRadius: 99, fontSize: 11, fontWeight: 600, background: bg, color, whiteSpace: 'nowrap' }}>{label}</span>;
 }
 
-function ChildCard({ child, d, today, onToggleTask, defaultOpen }) {
+function ChildCard({ child, d, today, onToggleTask, defaultOpen, onOpenChange }) {
   const [open, setOpen] = useState(defaultOpen);
+
+  function handleToggle() {
+    const newOpen = !open;
+    setOpen(newOpen);
+    onOpenChange?.(child.id, newOpen);
+  }
   const totalTasks = d.tasks.length;
   const completedTasks = d.tasks.filter(t => t.is_completed).length;
   const todayTasks = d.tasks.filter(t => t.day_of_week === today);
@@ -109,7 +115,7 @@ function ChildCard({ child, d, today, onToggleTask, defaultOpen }) {
 
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 20 }}>
-      <div onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', cursor: 'pointer', background: 'var(--surface)', borderBottom: open ? '1px solid var(--border)' : 'none' }}>
+      <div onClick={handleToggle} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 20px', cursor: 'pointer', background: 'var(--surface)', borderBottom: open ? '1px solid var(--border)' : 'none' }}>
         <div style={{ width: 48, height: 48, borderRadius: '50%', background: child.avatar_color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 700, color: 'white', flexShrink: 0 }}>{child.name[0]}</div>
         <div style={{ flex: 1 }}>
           <div style={{ fontWeight: 700, fontSize: 18, fontFamily: 'var(--font-display)' }}>{child.name}</div>
@@ -208,12 +214,27 @@ function ChildCard({ child, d, today, onToggleTask, defaultOpen }) {
   );
 }
 
+const STORAGE_KEY = 'dashboard_open_children';
+
+function getSavedOpenState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'); } catch { return null; }
+}
+
 export default function Dashboard() {
   const [children, setChildren] = useState([]);
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(true);
+  const [openState, setOpenState] = useState(getSavedOpenState() || {});
   const weekStart = getWeekStart();
   const today = todayName();
+
+  function handleOpenChange(childId, isOpen) {
+    setOpenState(prev => {
+      const next = { ...prev, [childId]: isOpen };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
+  }
 
   useEffect(() => { loadDashboard(); }, []);
 
@@ -278,9 +299,14 @@ export default function Dashboard() {
   return (
     <div className="animate-fade">
       <div className="page-header"><div><h1 className="page-title">Dashboard</h1><p className="page-subtitle">Learning overview & progress</p></div></div>
-      {children.map((child, i) => (
-        <ChildCard key={child.id} child={child} d={data[child.id]||{tasks:[],subjects:[],outcomeDetails:{}}} today={today} defaultOpen={i===0} onToggleTask={toggleTask}/>
-      ))}
+      {children.map((child, i) => {
+        // Use saved state if exists, otherwise first child open by default
+        const savedOpen = openState[child.id];
+        const defaultOpen = savedOpen !== undefined ? savedOpen : i === 0;
+        return (
+          <ChildCard key={child.id} child={child} d={data[child.id]||{tasks:[],subjects:[],outcomeDetails:{}}} today={today} defaultOpen={defaultOpen} onToggleTask={toggleTask} onOpenChange={handleOpenChange}/>
+        );
+      })}
     </div>
   );
 }

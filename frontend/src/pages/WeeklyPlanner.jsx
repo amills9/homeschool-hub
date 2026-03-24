@@ -5,13 +5,27 @@ import { getWeekStart, getWeekDays, nextWeek, prevWeek, formatWeekRange } from '
 import {
   ChevronLeft, ChevronRight, Plus, Check, Trash2, Clock, RotateCcw,
   X, Link, Pencil, Printer, ExternalLink, Camera, ZoomIn,
-  Facebook, Instagram, Copy,
+  Facebook, Instagram, Copy, BookmarkPlus,
 } from 'lucide-react';
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
 
-// ── Centred Modal ─────────────────────────────────────────────
-function CentredModal({ onClose, children, maxWidth = 560 }) {
+// ── URL detection helper ──────────────────────────────────────
+function linkifyText(text) {
+  if (!text) return null;
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  return parts.map((part, i) =>
+    urlRegex.test(part)
+      ? <a key={i} href={part} target="_blank" rel="noopener noreferrer"
+          style={{ color: 'var(--primary)', textDecoration: 'underline' }}
+          onClick={e => e.stopPropagation()}>{part}</a>
+      : part
+  );
+}
+
+// ── Modal wrapper ─────────────────────────────────────────────
+function Modal({ onClose, children, maxWidth = 560 }) {
   return (
     <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal" style={{ maxWidth, width: '100%' }}>
@@ -20,6 +34,7 @@ function CentredModal({ onClose, children, maxWidth = 560 }) {
     </div>
   );
 }
+
 // ── Photo Upload ──────────────────────────────────────────────
 function PhotoUploadModal({ task, onClose, onUploaded }) {
   const [preview, setPreview] = useState(null);
@@ -52,7 +67,7 @@ function PhotoUploadModal({ task, onClose, onUploaded }) {
   }
 
   return (
-    <CentredModal onClose={onClose} maxWidth={480}>
+    <Modal onClose={onClose} maxWidth={480}>
       <div className="modal-header">
         <h2 className="modal-title">Add Photo</h2>
         <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
@@ -88,7 +103,7 @@ function PhotoUploadModal({ task, onClose, onUploaded }) {
           </button>
         </div>
       </div>
-    </CentredModal>
+    </Modal>
   );
 }
 
@@ -180,7 +195,12 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
             )}
             {task.nsw_code && <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>{task.nsw_code}</span>}
           </div>
-          {task.description && <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4 }}>{task.description}</div>}
+          {/* Notes with clickable URLs */}
+          {task.description && (
+            <div style={{ fontSize: 12, color: 'var(--text-3)', marginTop: 4, wordBreak: 'break-word' }}>
+              {linkifyText(task.description)}
+            </div>
+          )}
           {photos.length > 0 && (
             <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
               {photos.map(photo => (
@@ -209,11 +229,17 @@ function TaskCard({ task, onToggle, onDelete, onEdit }) {
 }
 
 // ── Task Form ─────────────────────────────────────────────────
-function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onClose, isEdit }) {
+function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onClose, isEdit, onResourceSaved }) {
   const { user } = useAuth();
   const [form, setForm] = useState(initial);
   const [outcomes, setOutcomes] = useState([]);
   const [loadingOutcomes, setLoadingOutcomes] = useState(false);
+
+  // Quick resource (one-off link)
+  const [quickUrl, setQuickUrl] = useState('');
+  const [quickTitle, setQuickTitle] = useState('');
+  const [saveToResources, setSaveToResources] = useState(false);
+  const [showQuickResource, setShowQuickResource] = useState(false);
 
   const userState = (user?.state || 'NSW').toLowerCase();
   const stateCodeKey = `${userState}_code`;
@@ -243,12 +269,40 @@ function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onC
 
   async function handleSubmit(e) {
     e.preventDefault();
-    await onSubmit({ ...form, week_start: weekStart });
+    let finalForm = { ...form, week_start: weekStart };
+
+    // If quick resource was filled in, save it first
+    if (quickUrl && quickTitle) {
+      if (saveToResources) {
+        // Save permanently to resources
+        const res = await api.post('/resources', {
+          title: quickTitle,
+          type: 'link',
+          url: quickUrl,
+          child_id: form.child_id || null,
+          subject_id: form.subject_id || null,
+        });
+        finalForm.resource_id = res.data.id;
+        onResourceSaved?.();
+      } else {
+        // Save as a temporary resource just for this task — save to resources anyway but don't show in picker
+        const res = await api.post('/resources', {
+          title: quickTitle,
+          type: 'link',
+          url: quickUrl,
+          child_id: form.child_id || null,
+          subject_id: form.subject_id || null,
+        });
+        finalForm.resource_id = res.data.id;
+      }
+    }
+
+    await onSubmit(finalForm);
     onClose();
   }
 
   return (
-    <CentredModal onClose={onClose} maxWidth={580}>
+    <Modal onClose={onClose} maxWidth={580}>
       <div className="modal-header">
         <h2 className="modal-title">{isEdit ? 'Edit Task' : 'Add Task'}</h2>
         <button className="btn btn-ghost btn-icon" onClick={onClose}><X size={18} /></button>
@@ -325,17 +379,38 @@ function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onC
           </div>
         </div>
 
-        {/* Resource */}
+        {/* Resource — existing or quick add */}
         <div className="input-group">
-          <label>Resource <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></label>
-          <select className="select" value={form.resource_id || ''} onChange={e => setForm({ ...form, resource_id: e.target.value })}>
-            <option value="">No resource</option>
-            {availableResources.map(r => (
-              <option key={r.id} value={r.id}>
-                {r.type === 'link' ? '🔗' : r.type === 'pdf' ? '📄' : r.type === 'book' ? '📚' : '📝'} {r.title}
-              </option>
-            ))}
-          </select>
+          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>Resource <span style={{ color: 'var(--text-3)', fontWeight: 400 }}>(optional)</span></span>
+            <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '2px 8px' }}
+              onClick={() => setShowQuickResource(v => !v)}>
+              <Link size={11} /> {showQuickResource ? 'Use existing' : 'Add a link'}
+            </button>
+          </label>
+          {showQuickResource ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
+              <input className="input" placeholder="Link title e.g. Khan Academy" value={quickTitle}
+                onChange={e => setQuickTitle(e.target.value)} />
+              <input className="input" placeholder="https://..." value={quickUrl}
+                onChange={e => setQuickUrl(e.target.value)} type="url" />
+              <label className="checkbox-wrap" style={{ fontSize: 13 }}>
+                <input type="checkbox" checked={saveToResources} onChange={e => setSaveToResources(e.target.checked)} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <BookmarkPlus size={13} color="var(--primary)" /> Save to Resources library
+                </span>
+              </label>
+            </div>
+          ) : (
+            <select className="select" value={form.resource_id || ''} onChange={e => setForm({ ...form, resource_id: e.target.value })}>
+              <option value="">No resource</option>
+              {availableResources.map(r => (
+                <option key={r.id} value={r.id}>
+                  {r.type === 'link' ? '🔗' : r.type === 'pdf' ? '📄' : r.type === 'book' ? '📚' : '📝'} {r.title}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Recurring + completed */}
@@ -356,7 +431,7 @@ function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onC
         <div className="input-group">
           <label>Notes</label>
           <textarea className="textarea" value={form.description || ''} onChange={e => setForm({ ...form, description: e.target.value })}
-            placeholder="Optional notes..." rows={2} />
+            placeholder="Optional notes or paste a URL..." rows={2} />
         </div>
 
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
@@ -364,7 +439,7 @@ function TaskForm({ initial, kids, subjects, resources, weekStart, onSubmit, onC
           <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Add Task'}</button>
         </div>
       </form>
-    </CentredModal>
+    </Modal>
   );
 }
 
@@ -412,7 +487,7 @@ function PrintPreview({ tasks, kids, weekStart, onClose }) {
   }
 
   return (
-    <CentredModal onClose={onClose} maxWidth={820}>
+    <Modal onClose={onClose} maxWidth={820}>
       <div className="modal-header" style={{ flexShrink: 0 }}>
         <h2 className="modal-title">Print Preview</h2>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -465,7 +540,7 @@ function PrintPreview({ tasks, kids, weekStart, onClose }) {
       <div style={{ paddingTop: 12, borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-3)' }}>
         💡 Click any task to exclude from print. Toggle children above.
       </div>
-    </CentredModal>
+    </Modal>
   );
 }
 
@@ -529,8 +604,12 @@ export default function WeeklyPlanner() {
   }
 
   const days = getWeekDays(weekStart);
+
+  // Default child: if a specific child is selected in the filter, use that; else first child
+  const defaultChildId = selectedChild !== 'all' ? selectedChild : (children[0]?.id || '');
+
   const addInitial = {
-    child_id: children[0]?.id || '',
+    child_id: defaultChildId,
     subject_id: '', resource_id: '', curriculum_outcome_id: '',
     title: '', description: '',
     day_of_week: addDay || 'Monday',
@@ -578,7 +657,7 @@ export default function WeeklyPlanner() {
         </select>
       </div>
 
-      {/* Desktop — 7 col grid, no inline display style so CSS controls it */}
+      {/* Desktop — 7 col grid */}
       <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10 }}>
         {days.map(day => {
           const dt = tasks.filter(t => t.day_of_week === day.name);
@@ -591,21 +670,22 @@ export default function WeeklyPlanner() {
                 <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{day.date}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{done}/{dt.length}</div>
               </div>
+              {/* Add button at TOP */}
+              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
+                onClick={() => { setAddDay(day.name); setShowModal(true); }}>
+                <Plus size={12} /> Add
+              </button>
               <div style={{ flex: 1, minWidth: 0 }}>
                 {loading ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
                   : dt.length === 0 ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
                   : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
               </div>
-              <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 12 }}
-                onClick={() => { setAddDay(day.name); setShowModal(true); }}>
-                <Plus size={12} /> Add
-              </button>
             </div>
           );
         })}
       </div>
 
-      {/* Mobile — accordion, no inline display style */}
+      {/* Mobile — accordion */}
       <div className="planner-mobile" style={{ flexDirection: 'column', gap: 10 }}>
         {days.map(day => {
           const dt = tasks.filter(t => t.day_of_week === day.name);
@@ -624,14 +704,15 @@ export default function WeeklyPlanner() {
                 <span style={{ fontSize: 18, color: 'var(--text-3)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>⌄</span>
               </div>
               {isOpen && (
-                <div style={{ padding: '12px 12px 8px', background: 'var(--surface-2)' }}>
-                  {loading ? <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
-                    : dt.length === 0 ? <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
-                    : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
-                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 13, marginTop: 4 }}
+                <div style={{ padding: '8px 12px 12px', background: 'var(--surface-2)' }}>
+                  {/* Add button at TOP on mobile too */}
+                  <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center', fontSize: 13, marginBottom: 8 }}
                     onClick={() => { setAddDay(day.name); setShowModal(true); }}>
                     <Plus size={13} /> Add task
                   </button>
+                  {loading ? <div style={{ padding: '16px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                    : dt.length === 0 ? <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>No tasks for {day.name}</div>
+                    : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
                 </div>
               )}
             </div>
@@ -639,8 +720,8 @@ export default function WeeklyPlanner() {
         })}
       </div>
 
-      {showModal && <TaskForm initial={addInitial} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} />}
-      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} />}
+      {showModal && <TaskForm initial={addInitial} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleAddTask} onClose={() => { setShowModal(false); setAddDay(null); }} isEdit={false} onResourceSaved={loadAll} />}
+      {editTask && <TaskForm initial={{ ...editTask, is_recurring: editTask.is_recurring === 1 }} kids={children} subjects={subjects} resources={resources} weekStart={weekStart} onSubmit={handleEditTask} onClose={() => setEditTask(null)} isEdit={true} onResourceSaved={loadAll} />}
       {showPrint && <PrintPreview tasks={tasks} kids={children} weekStart={weekStart} onClose={() => setShowPrint(false)} />}
     </div>
   );
