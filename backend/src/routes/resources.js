@@ -34,7 +34,7 @@ async function uploadPdfToCloudinary(base64Data, userId, filename) {
   const { cloudName, apiKey, apiSecret } = getCloudConfig();
   const timestamp = Math.floor(Date.now() / 1000);
   const folder    = `homeschool-hub/pdfs/${userId}`;
-  const publicId  = `${filename.replace(/[^a-zA-Z0-9-_]/g, '_')}_${timestamp}`;
+  const publicId  = `${filename.replace(/[^a-zA-Z0-9-_]/g, '_')}_${timestamp}.pdf`;
   const signature = sign({ folder, public_id: publicId, timestamp }, apiSecret);
 
   const boundary = `----FormBoundary${timestamp}`;
