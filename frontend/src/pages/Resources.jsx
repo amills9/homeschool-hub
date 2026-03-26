@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
 import { Plus, Link, FileText, BookOpen, Trash2, ExternalLink, X, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -25,11 +25,20 @@ function ResourceCard({ resource, onDelete, onEdit }) {
           </div>
           {resource.notes && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{resource.notes}</div>}
           {resource.url && (
-            <a href={resource.url} target="_blank" rel="noopener noreferrer"
-              className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px', marginTop: 6 }}
-              onClick={e => e.stopPropagation()}>
-              <ExternalLink size={11} /> Open
-            </a>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+              <a href={resource.url} target="_blank" rel="noopener noreferrer"
+                className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
+                onClick={e => e.stopPropagation()}>
+                <ExternalLink size={11} /> {resource.type === 'pdf' ? 'Open PDF' : 'Open'}
+              </a>
+              {resource.type === 'pdf' && (
+                <a href={resource.url} download
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={e => e.stopPropagation()}>
+                  ⬇ Download
+                </a>
+              )}
+            </div>
           )}
         </div>
         <div style={{ display: 'flex', gap: 2, flexShrink: 0 }}>
@@ -65,19 +74,48 @@ function ResourceGroup({ label, count, color, resources, onDelete, onEdit }) {
 function ResourceModal({ resource, onClose, onSave, children, subjects }) {
   const isEdit = !!resource;
   const [form, setForm] = useState(resource || { child_id: '', subject_id: '', title: '', type: 'link', url: '', notes: '' });
-  // When a specific child is selected show their subjects only.
-  // When All Children is selected deduplicate by name to avoid showing
-  // English three times when you have three children.
+  const [pdfBase64, setPdfBase64] = useState(null);
+  const [pdfFilename, setPdfFilename] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileRef = useRef();
+
+  // Deduplicate subjects when no child selected
   const availableSubjects = form.child_id
     ? subjects.filter(s => s.child_id === form.child_id)
     : subjects.filter((s, i, arr) => arr.findIndex(x => x.name === s.name) === i);
 
+  function handlePdfFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { setUploadError('PDF must be under 20MB'); return; }
+    setUploadError('');
+    setPdfFilename(file.name);
+    if (!form.title) setForm(f => ({ ...f, title: file.name.replace(/\.pdf$/i, '') }));
+    const reader = new FileReader();
+    reader.onload = ev => setPdfBase64(ev.target.result);
+    reader.readAsDataURL(file);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
-    if (isEdit) await api.put(`/resources/${resource.id}`, form);
-    else await api.post('/resources', form);
-    onSave();
-    onClose();
+    setUploading(true);
+    setUploadError('');
+    try {
+      const payload = { ...form };
+      if (form.type === 'pdf' && pdfBase64) {
+        payload.pdf_base64 = pdfBase64;
+        payload.pdf_filename = pdfFilename;
+      }
+      if (isEdit) await api.put(`/resources/${resource.id}`, payload);
+      else await api.post('/resources', payload);
+      onSave();
+      onClose();
+    } catch (err) {
+      setUploadError(err.response?.data?.error || err.message || 'Save failed');
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
@@ -117,19 +155,43 @@ function ResourceModal({ resource, onClose, onSave, children, subjects }) {
               {availableSubjects.map(s => <option key={s.id} value={s.id}>{s.icon} {s.name}</option>)}
             </select>
           </div>
-          {(form.type === 'link' || form.type === 'pdf') && (
+          {form.type === 'link' && (
             <div className="input-group">
               <label>URL</label>
               <input className="input" type="url" value={form.url || ''} onChange={e => setForm({...form, url: e.target.value})} placeholder="https://..." />
+            </div>
+          )}
+          {form.type === 'pdf' && (
+            <div className="input-group">
+              <label>PDF File</label>
+              {resource?.url && !pdfBase64 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-2)', flex: 1 }}>📄 Current file uploaded</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()} style={{ fontSize: 12 }}>Replace</button>
+                  <a href={resource.url} download className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>⬇ Download</a>
+                </div>
+              ) : (
+                <div onClick={() => fileRef.current.click()}
+                  style={{ border: '2px dashed var(--border)', borderRadius: 'var(--radius-sm)', padding: '20px 16px', textAlign: 'center', cursor: 'pointer', background: 'var(--surface-2)' }}>
+                  {pdfBase64
+                    ? <div style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 500 }}>📄 {pdfFilename}</div>
+                    : <><div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Click to select PDF</div><div style={{ fontSize: 12, color: 'var(--text-3)' }}>Max 20MB</div></>
+                  }
+                </div>
+              )}
+              <input ref={fileRef} type="file" accept=".pdf,application/pdf" style={{ display: 'none' }} onChange={handlePdfFile} />
             </div>
           )}
           <div className="input-group">
             <label>Notes</label>
             <textarea className="textarea" value={form.notes || ''} onChange={e => setForm({...form, notes: e.target.value})} rows={2} placeholder="Optional description..." />
           </div>
+          {uploadError && <div style={{ color: 'var(--danger)', fontSize: 13, padding: '8px 12px', background: 'rgba(231,111,81,0.1)', borderRadius: 6 }}>{uploadError}</div>}
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
             <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
-            <button type="submit" className="btn btn-primary">{isEdit ? 'Save Changes' : 'Add Resource'}</button>
+            <button type="submit" className="btn btn-primary" disabled={uploading}>
+              {uploading ? 'Uploading...' : isEdit ? 'Save Changes' : 'Add Resource'}
+            </button>
           </div>
         </form>
       </div>

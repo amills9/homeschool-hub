@@ -160,6 +160,10 @@ function initializeDatabase() {
   if (!resCols.includes("user_id")) {
     db.exec("ALTER TABLE resources ADD COLUMN user_id TEXT");
   }
+  // Add cloudinary_public_id to resources for PDF uploads
+  if (!resCols.includes("cloudinary_public_id")) {
+    db.exec("ALTER TABLE resources ADD COLUMN cloudinary_public_id TEXT");
+  }
 
   // Add school_name to user_preferences if missing
   const prefCols = db.prepare("PRAGMA table_info(user_preferences)").all().map(c => c.name);
