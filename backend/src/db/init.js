@@ -171,6 +171,22 @@ function initializeDatabase() {
     db.exec("ALTER TABLE user_preferences ADD COLUMN school_name TEXT DEFAULT ''");
   }
 
+  // Add sort_order to weekly_tasks for drag-drop ordering
+  const taskCols2 = db.prepare("PRAGMA table_info(weekly_tasks)").all().map(c => c.name);
+  if (!taskCols2.includes("sort_order")) {
+    db.exec("ALTER TABLE weekly_tasks ADD COLUMN sort_order INTEGER DEFAULT 0");
+    // Initialise sort_order from existing created_at order
+    db.exec(`
+      UPDATE weekly_tasks SET sort_order = (
+        SELECT COUNT(*) FROM weekly_tasks t2
+        WHERE t2.child_id = weekly_tasks.child_id
+          AND t2.day_of_week = weekly_tasks.day_of_week
+          AND t2.week_start = weekly_tasks.week_start
+          AND t2.created_at <= weekly_tasks.created_at
+      )
+    `);
+  }
+
   // Seed admin user if not exists
   const adminExists = db.prepare('SELECT id FROM users WHERE role = ?').get('admin');
   if (!adminExists) {

@@ -32,6 +32,75 @@ function ProgressRing({ value, max, size = 80, color, label, sublabel }) {
   );
 }
 
+// ── Subject Pie Chart ─────────────────────────────────────────
+// Shows % of learning outcomes achieved per subject for a child.
+// Pure SVG — no external chart library needed.
+function SubjectPieChart({ subjects, outcomes }) {
+  if (!subjects.length || !outcomes.length) return null;
+
+  // Group outcomes by subject
+  const bySubject = {};
+  for (const s of subjects) {
+    bySubject[s.id] = { name: s.name, color: s.color, icon: s.icon, total: 0, achieved: 0 };
+  }
+  for (const o of outcomes) {
+    if (o.subject_id && bySubject[o.subject_id]) {
+      bySubject[o.subject_id].total++;
+      if (o.achieved) bySubject[o.subject_id].achieved++;
+    }
+  }
+
+  // Only show subjects that have at least one outcome
+  const data = Object.values(bySubject).filter(s => s.total > 0);
+  if (!data.length) return null;
+
+  const SIZE   = 80;
+  const RADIUS = 32;
+  const CX     = SIZE / 2;
+  const CY     = SIZE / 2;
+  const STROKE = 14;
+  const CIRC   = 2 * Math.PI * RADIUS;
+
+  return (
+    <div className="card" style={{ background: 'var(--surface-2)' }}>
+      <h3 style={{ fontSize: 15, marginBottom: 16 }}>Yearly Progress by Subject</h3>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'flex-start' }}>
+        {data.map(s => {
+          const pct    = s.total > 0 ? s.achieved / s.total : 0;
+          const offset = CIRC * (1 - pct);
+          const label  = Math.round(pct * 100);
+          return (
+            <div key={s.name} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, minWidth: 80 }}>
+              <div style={{ position: 'relative', width: SIZE, height: SIZE }}>
+                <svg width={SIZE} height={SIZE} style={{ transform: 'rotate(-90deg)' }}>
+                  {/* Track */}
+                  <circle cx={CX} cy={CY} r={RADIUS} fill="none" stroke="var(--border)" strokeWidth={STROKE} />
+                  {/* Progress */}
+                  <circle cx={CX} cy={CY} r={RADIUS} fill="none"
+                    stroke={s.color} strokeWidth={STROKE}
+                    strokeDasharray={CIRC} strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.4,0,0.2,1)' }}
+                  />
+                </svg>
+                {/* Centre label */}
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: s.color }}>{label}%</span>
+                </div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{s.icon} {s.name}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{s.achieved}/{s.total} outcomes</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+
 function OutcomeBadge({ outcome, linkedTasks, onToggleTask }) {
   const [open, setOpen] = useState(false);
   const achieved = linkedTasks.length > 0 && linkedTasks.every(t => t.is_completed);
@@ -209,6 +278,10 @@ function ChildCard({ child, d, today, onToggleTask, defaultOpen, onOpenChange })
               </div>
             )}
           </div>
+
+          {/* Yearly subject progress pie charts */}
+          <SubjectPieChart subjects={d.subjects} outcomes={d.learningOutcomes || []} />
+
         </div>
       )}
     </div>
@@ -259,12 +332,14 @@ export default function Dashboard() {
 
       const allData = {};
       await Promise.all(kids.map(async kid => {
-        const [tasksRes, subjectsRes] = await Promise.all([
+        const [tasksRes, subjectsRes, outcomesRes] = await Promise.all([
           api.get(`/tasks?child_id=${kid.id}&week_start=${weekStart}`),
           api.get(`/children/${kid.id}/subjects`),
+          api.get(`/children/${kid.id}/outcomes`),
         ]);
-        const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : [];
+        const tasks    = Array.isArray(tasksRes.data)    ? tasksRes.data    : [];
         const subjects = Array.isArray(subjectsRes.data) ? subjectsRes.data : [];
+        const learningOutcomes = Array.isArray(outcomesRes.data) ? outcomesRes.data : [];
 
         // Build outcomeDetails map for this child's tasks
         const outcomeDetails = {};
@@ -274,7 +349,7 @@ export default function Dashboard() {
           }
         }
 
-        allData[kid.id] = { tasks, subjects, outcomeDetails };
+        allData[kid.id] = { tasks, subjects, outcomeDetails, learningOutcomes };
       }));
       setData(allData);
     } catch (e) { console.error('Dashboard error:', e); }
@@ -312,7 +387,7 @@ export default function Dashboard() {
         const savedOpen = openState[child.id];
         const defaultOpen = savedOpen !== undefined ? savedOpen : i === 0;
         return (
-          <ChildCard key={child.id} child={child} d={data[child.id]||{tasks:[],subjects:[],outcomeDetails:{}}} today={today} defaultOpen={defaultOpen} onToggleTask={toggleTask} onOpenChange={handleOpenChange}/>
+          <ChildCard key={child.id} child={child} d={data[child.id]||{tasks:[],subjects:[],outcomeDetails:{},learningOutcomes:[]}} today={today} defaultOpen={defaultOpen} onToggleTask={toggleTask} onOpenChange={handleOpenChange}/>
         );
       })}
     </div>

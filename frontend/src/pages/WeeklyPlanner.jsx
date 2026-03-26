@@ -561,6 +561,11 @@ export default function WeeklyPlanner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Drag and drop state
+  const [dragTask, setDragTask] = useState(null);      // task being dragged
+  const [dragOver, setDragOver] = useState(null);       // {day, index} drop target
+  const dragNode = useRef(null);
+
   useEffect(() => { loadAll(); }, [weekStart, selectedChild]);
 
   async function loadAll() {
@@ -587,6 +592,89 @@ export default function WeeklyPlanner() {
       setError('Could not load planner data. Please refresh the page.');
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ── Drag and drop handlers ──────────────────────────────────
+
+  function handleDragStart(task, e) {
+    setDragTask(task);
+    dragNode.current = e.currentTarget;
+    dragNode.current.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleDragEnd(e) {
+    if (dragNode.current) dragNode.current.style.opacity = '1';
+    setDragTask(null);
+    setDragOver(null);
+    dragNode.current = null;
+  }
+
+  function handleDragOver(day, index, e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOver({ day, index });
+  }
+
+  function handleDragLeave() {
+    setDragOver(null);
+  }
+
+  async function handleDrop(targetDay, targetIndex, e) {
+    e.preventDefault();
+    if (!dragTask) return;
+    setDragOver(null);
+
+    // Build new ordered task list for the target day
+    const dayTasks = tasks
+      .filter(t => t.day_of_week === targetDay)
+      .filter(t => t.id !== dragTask.id)
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+
+    // Insert dragged task at target position
+    dayTasks.splice(targetIndex, 0, { ...dragTask, day_of_week: targetDay });
+
+    // Build update payload
+    const updates = dayTasks.map((t, i) => ({
+      id: t.id,
+      day_of_week: targetDay,
+      sort_order: i,
+    }));
+
+    // Also update the source day if task moved between days
+    if (dragTask.day_of_week !== targetDay) {
+      const sourceDayTasks = tasks
+        .filter(t => t.day_of_week === dragTask.day_of_week && t.id !== dragTask.id)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+      sourceDayTasks.forEach((t, i) => updates.push({ id: t.id, day_of_week: t.day_of_week, sort_order: i }));
+    }
+
+    // Optimistic update — reorder locally immediately
+    setTasks(prev => {
+      const others = prev.filter(t => t.id !== dragTask.id && t.day_of_week !== targetDay && (dragTask.day_of_week === targetDay || t.day_of_week !== dragTask.day_of_week));
+      const newDayTasks = dayTasks.map((t, i) => ({ ...t, day_of_week: targetDay, sort_order: i }));
+      let result = [...newDayTasks];
+      if (dragTask.day_of_week !== targetDay) {
+        const srcUpdated = tasks
+          .filter(t => t.day_of_week === dragTask.day_of_week && t.id !== dragTask.id)
+          .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+          .map((t, i) => ({ ...t, sort_order: i }));
+        result = [...result, ...srcUpdated, ...prev.filter(t =>
+          t.day_of_week !== targetDay && t.day_of_week !== dragTask.day_of_week
+        )];
+      } else {
+        result = [...result, ...prev.filter(t => t.day_of_week !== targetDay)];
+      }
+      return result;
+    });
+
+    // Persist to server
+    try {
+      await api.patch('/tasks/reorder', { updates });
+    } catch (err) {
+      console.error('Reorder failed:', err);
+      loadAll(); // Reload on error
     }
   }
 
@@ -628,7 +716,7 @@ export default function WeeklyPlanner() {
   }
 
   return (
-    <div className="weekly-container animate-fade">
+    <div className="animate-fade">
       <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
           {schoolName && <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}>{schoolName}</div>}
@@ -657,7 +745,9 @@ export default function WeeklyPlanner() {
       {/* Desktop — 7 col grid */}
       <div className="planner-desktop" style={{ gridTemplateColumns: 'repeat(7, minmax(0, 1fr))', gap: 10 }}>
         {days.map(day => {
-          const dt = tasks.filter(t => t.day_of_week === day.name);
+          const dt = tasks
+            .filter(t => t.day_of_week === day.name)
+            .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
           const done = dt.filter(t => t.is_completed).length;
           const wknd = day.name === 'Saturday' || day.name === 'Sunday';
           return (
@@ -672,10 +762,44 @@ export default function WeeklyPlanner() {
                 onClick={() => { setAddDay(day.name); setShowModal(true); }}>
                 <Plus size={12} /> Add
               </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {loading ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
-                  : dt.length === 0 ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
-                  : dt.map(task => <TaskCard key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />)}
+              {/* Drop zone — entire column is droppable */}
+              <div
+                style={{
+                  flex: 1, minWidth: 0,
+                  borderRadius: 'var(--radius-sm)',
+                  border: dragOver?.day === day.name ? '2px dashed var(--primary)' : '2px dashed transparent',
+                  padding: 2,
+                  transition: 'border-color 0.15s',
+                  background: dragOver?.day === day.name ? 'var(--primary-pale)' : 'transparent',
+                }}
+                onDragOver={e => handleDragOver(day.name, dt.length, e)}
+                onDragLeave={handleDragLeave}
+                onDrop={e => handleDrop(day.name, dt.length, e)}
+              >
+                {loading
+                  ? <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'center' }}><div className="spinner" /></div>
+                  : dt.length === 0
+                    ? <div style={{ padding: '12px 8px', textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No tasks</div>
+                    : dt.map((task, idx) => (
+                        <div
+                          key={task.id}
+                          draggable
+                          onDragStart={e => handleDragStart(task, e)}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={e => { e.stopPropagation(); handleDragOver(day.name, idx, e); }}
+                          onDrop={e => { e.stopPropagation(); handleDrop(day.name, idx, e); }}
+                          style={{
+                            cursor: 'grab',
+                            borderRadius: 'var(--radius-sm)',
+                            outline: dragOver?.day === day.name && dragOver?.index === idx
+                              ? '2px solid var(--primary)' : 'none',
+                            marginBottom: 4,
+                          }}
+                        >
+                          <TaskCard task={task} onToggle={toggleTask} onDelete={deleteTask} onEdit={t => setEditTask(t)} />
+                        </div>
+                      ))
+                }
               </div>
             </div>
           );

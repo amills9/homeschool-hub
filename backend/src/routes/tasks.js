@@ -39,7 +39,7 @@ router.get('/', authMiddleware, (req, res) => {
   `;
   const params = [...targetIds];
   if (week_start) { query += ' AND t.week_start = ?'; params.push(week_start); }
-  query += ' ORDER BY t.day_of_week, t.created_at';
+  query += ' ORDER BY t.day_of_week, t.sort_order, t.created_at';
   res.json(db.prepare(query).all(...params));
 });
 
@@ -93,6 +93,27 @@ router.post('/copy-recurring', authMiddleware, (req, res) => {
   });
   copyMany(recurring);
   res.json({ copied: recurring.length });
+});
+
+// PATCH /tasks/reorder — save new sort order after drag-drop
+// Body: { updates: [{ id, day_of_week, sort_order }] }
+router.patch('/reorder', authMiddleware, (req, res) => {
+  const { updates } = req.body;
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return res.status(400).json({ error: 'updates array required' });
+  }
+
+  const updateMany = db.transaction((updates) => {
+    const stmt = db.prepare(
+      'UPDATE weekly_tasks SET day_of_week = ?, sort_order = ? WHERE id = ?'
+    );
+    for (const u of updates) {
+      stmt.run(u.day_of_week, u.sort_order, u.id);
+    }
+  });
+  updateMany(updates);
+
+  res.json({ success: true });
 });
 
 module.exports = router;
