@@ -123,6 +123,8 @@ h1, h2, h3 {
   padding: 32px;
   min-height: 100vh;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Cards ───────────────────────────────────────────────── */
@@ -259,9 +261,15 @@ h1, h2, h3 {
 
 /* ── Weekly Planner Grid ─────────────────────────────────── */
 /* Desktop 7-column grid — always shown */
-.planner-desktop { display: grid; }
+.planner-desktop { display: grid; flex: 1 }
 /* Mobile accordion — never shown (mobile = separate app) */
 .planner-mobile  { display: none !important; }
+
+.weekly-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
 /* ── Progress Ring (SVG) ─────────────────────────────────── */
 .progress-ring { transform: rotate(-90deg); }

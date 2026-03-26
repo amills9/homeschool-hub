@@ -628,7 +628,7 @@ export default function WeeklyPlanner() {
   }
 
   return (
-    <div className="animate-fade">
+    <div className="weekly-container animate-fade">
       <div className="page-header" style={{ flexWrap: 'wrap', gap: 12 }}>
         <div>
           {schoolName && <div style={{ fontSize: 12, color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 2 }}>{schoolName}</div>}
