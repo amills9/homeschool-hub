@@ -65,7 +65,12 @@ function ResourceGroup({ label, count, color, resources, onDelete, onEdit }) {
 function ResourceModal({ resource, onClose, onSave, children, subjects }) {
   const isEdit = !!resource;
   const [form, setForm] = useState(resource || { child_id: '', subject_id: '', title: '', type: 'link', url: '', notes: '' });
-  const availableSubjects = subjects.filter(s => !form.child_id || s.child_id === form.child_id);
+  // When a specific child is selected show their subjects only.
+  // When All Children is selected deduplicate by name to avoid showing
+  // English three times when you have three children.
+  const availableSubjects = form.child_id
+    ? subjects.filter(s => s.child_id === form.child_id)
+    : subjects.filter((s, i, arr) => arr.findIndex(x => x.name === s.name) === i);
 
   async function handleSubmit(e) {
     e.preventDefault();
