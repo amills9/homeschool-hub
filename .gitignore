@@ -1,0 +1,7 @@
+```
+# Build artifacts
+frontend/dist/
+# Database files
+*.db-shm
+*.db-wal
+```

@@ -32,11 +32,14 @@ function ResourceCard({ resource, onDelete, onEdit }) {
                 <ExternalLink size={11} /> {resource.type === 'pdf' ? 'Open PDF' : 'Open'}
               </a>
               {resource.type === 'pdf' && (
-                <a href={resource.url} download
+                <button
                   className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
-                  onClick={e => e.stopPropagation()}>
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.location.href = `/api/resources/${resource.id}/download`;
+                  }}>
                   ⬇ Download
-                </a>
+                </button>
               )}
             </div>
           )}
@@ -168,7 +171,7 @@ function ResourceModal({ resource, onClose, onSave, children, subjects }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', flex: 1 }}>📄 Current file uploaded</span>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()} style={{ fontSize: 12 }}>Replace</button>
-                  <a href={resource.url} download className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>⬇ Download</a>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => window.location.href = `/api/resources/${resource.id}/download`}>⬇ Download</button>
                 </div>
               ) : (
                 <div onClick={() => fileRef.current.click()}
