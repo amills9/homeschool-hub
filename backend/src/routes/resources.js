@@ -192,6 +192,59 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ── GET /resources/:id/download ────────────────────────────────
+// Proxy download for Cloudinary-hosted PDFs to avoid CORS/auth issues
+router.get('/:id/download', authMiddleware, async (req, res) => {
+  const resource = db.prepare('SELECT * FROM resources WHERE id = ?').get(req.params.id);
+  if (!resource) return res.status(404).json({ error: 'Not found' });
+  
+  // Check if user has access to this resource
+  let accessibleIds;
+  if (req.user.role === 'admin') {
+    accessibleIds = db.prepare('SELECT id FROM children').all().map(c => c.id);
+  } else {
+    accessibleIds = db.prepare('SELECT id FROM children WHERE user_id = ?').all(req.user.id).map(c => c.id);
+  }
+  
+  const isAccessible = resource.user_id === req.user.id || 
+                       (resource.user_id === null && accessibleIds.includes(resource.child_id));
+  if (!isAccessible) return res.status(403).json({ error: 'Access denied' });
+  
+  if (!resource.cloudinary_public_id) {
+    return res.status(400).json({ error: 'No PDF file attached' });
+  }
+  
+  try {
+    const { cloudName, apiKey, apiSecret } = getCloudConfig();
+    const timestamp = Math.floor(Date.now() / 1000);
+    const signature = sign({ public_id: resource.cloudinary_public_id, resource_type: 'raw', timestamp }, apiSecret);
+    
+    // Generate signed Cloudinary URL
+    const downloadUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${resource.cloudinary_public_id}?api_key=${apiKey}&timestamp=${timestamp}&signature=${signature}`;
+    
+    // Fetch the PDF from Cloudinary and pipe it to the client
+    const response = await new Promise((resolve, reject) => {
+      https.get(downloadUrl, (resp) => {
+        if (resp.statusCode !== 200) {
+          reject(new Error(`Cloudinary returned status ${resp.statusCode}`));
+          return;
+        }
+        resolve(resp);
+      }).on('error', reject);
+    });
+    
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${resource.title || 'document'}.pdf"`);
+    
+    // Pipe the Cloudinary response to the client
+    response.pipe(res);
+  } catch (err) {
+    console.error('Download error:', err.message);
+    res.status(500).json({ error: 'Failed to download PDF: ' + err.message });
+  }
+});
+
 // ── DELETE /resources/:id ─────────────────────────────────────
 // Also removes the PDF from Cloudinary if one was uploaded
 router.delete('/:id', authMiddleware, async (req, res) => {
