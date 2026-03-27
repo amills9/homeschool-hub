@@ -222,11 +222,26 @@ router.get('/:id/download', authMiddleware, async (req, res) => {
     // Generate signed Cloudinary URL
     const downloadUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${resource.cloudinary_public_id}?api_key=${apiKey}&timestamp=${timestamp}&signature=${signature}`;
     
-    // Redirect to signed URL (Cloudinary handles the actual download)
-    res.redirect(downloadUrl);
+    // Fetch the PDF from Cloudinary and pipe it to the client
+    const response = await new Promise((resolve, reject) => {
+      https.get(downloadUrl, (resp) => {
+        if (resp.statusCode !== 200) {
+          reject(new Error(`Cloudinary returned status ${resp.statusCode}`));
+          return;
+        }
+        resolve(resp);
+      }).on('error', reject);
+    });
+    
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${resource.title || 'document'}.pdf"`);
+    
+    // Pipe the Cloudinary response to the client
+    response.pipe(res);
   } catch (err) {
     console.error('Download error:', err.message);
-    res.status(500).json({ error: 'Failed to generate download link' });
+    res.status(500).json({ error: 'Failed to download PDF: ' + err.message });
   }
 });
 

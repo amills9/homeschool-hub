@@ -26,11 +26,19 @@ function ResourceCard({ resource, onDelete, onEdit }) {
           {resource.notes && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 4 }}>{resource.notes}</div>}
           {resource.url && (
             <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              <a href={resource.url} target="_blank" rel="noopener noreferrer"
-                className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
-                onClick={e => e.stopPropagation()}>
-                <ExternalLink size={11} /> {resource.type === 'pdf' ? 'Open PDF' : 'Open'}
-              </a>
+              {resource.type === 'pdf' ? (
+                <a href={`/api/resources/${resource.id}/download`} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={e => e.stopPropagation()}>
+                  <ExternalLink size={11} /> Open PDF
+                </a>
+              ) : (
+                <a href={resource.url} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
+                  onClick={e => e.stopPropagation()}>
+                  <ExternalLink size={11} /> Open
+                </a>
+              )}
               {resource.type === 'pdf' && (
                 <button
                   className="btn btn-ghost btn-sm" style={{ fontSize: 11, padding: '3px 8px' }}
@@ -171,7 +179,7 @@ function ResourceModal({ resource, onClose, onSave, children, subjects }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)' }}>
                   <span style={{ fontSize: 13, color: 'var(--text-2)', flex: 1 }}>📄 Current file uploaded</span>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => fileRef.current.click()} style={{ fontSize: 12 }}>Replace</button>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }} onClick={() => window.location.href = `/api/resources/${resource.id}/download`}>⬇ Download</button>
+                  <a href={`/api/resources/${resource.id}/download`} target="_blank" rel="noopener noreferrer" className="btn btn-ghost btn-sm" style={{ fontSize: 12 }}>⬇ Download</a>
                 </div>
               ) : (
                 <div onClick={() => fileRef.current.click()}
