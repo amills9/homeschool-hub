@@ -6,4 +6,7 @@ data/
 *.db
 *.db.backup
 .claude/
+.dockerignore
+docker*.yml
+*sqlite*
 "@ | Out-File -FilePath ".gitignore" -Encoding utf8
