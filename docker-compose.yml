@@ -1,0 +1,92 @@
+# ============================================================
+# Homeschool Hub — Docker Compose (v3.1.0)
+# Three containers: frontend (nginx), backend (node), db (postgres)
+#
+# Usage:
+#   First time:   docker compose up -d
+#   Update app:   docker compose build && docker compose up -d
+#   View logs:    docker compose logs -f
+#   Stop:         docker compose down
+#   Stop + wipe:  docker compose down -v  (DELETES database!)
+# ============================================================
+
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: homeschool-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       ${DB_NAME:-homeschool}
+      POSTGRES_USER:     ${DB_USER:-homeschool}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-homeschool} -d ${DB_NAME:-homeschool}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # To move this container to a different machine later:
+    # 1. pg_dump the data
+    # 2. Deploy db container on new machine
+    # 3. pg_restore into new container
+    # 4. Update DB_HOST in backend environment
+
+  # ── Node.js Backend API ──────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+
+    container_name: homeschool-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV:               production
+      PORT:                   3001
+      DB_HOST:                db
+      DB_PORT:                5432
+      DB_NAME:                ${DB_NAME:-homeschool}
+      DB_USER:                ${DB_USER:-homeschool}
+      DB_PASSWORD:            ${DB_PASSWORD:-changeme_in_production}
+      JWT_SECRET:             ${JWT_SECRET:-change_this_jwt_secret}
+      CLOUDINARY_CLOUD_NAME:  ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_API_KEY:     ${CLOUDINARY_API_KEY}
+      CLOUDINARY_API_SECRET:  ${CLOUDINARY_API_SECRET}
+      RESEND_API_KEY:         ${RESEND_API_KEY}
+      FROM_EMAIL:             ${FROM_EMAIL:-onboarding@resend.dev}
+      ADMIN_EMAIL:            ${ADMIN_EMAIL:-}
+      APP_URL:                ${APP_URL:-http://localhost}
+    # Backend is NOT exposed externally — nginx proxies to it
+    expose:
+      - "3001"
+
+  # ── nginx Frontend ───────────────────────────────────────────
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+    container_name: homeschool-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      # Uncomment for HTTPS after certbot setup:
+      # - "443:443"
+    volumes:
+      # Uncomment for Let's Encrypt SSL certs:
+      # - /etc/letsencrypt:/etc/letsencrypt:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+
+# ── Named Volumes ────────────────────────────────────────────
+# postgres_data persists database across container restarts/upgrades
+volumes:
+  postgres_data:
+    driver: local

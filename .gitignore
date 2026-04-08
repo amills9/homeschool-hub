@@ -1,0 +1,9 @@
+@"
+.env
+node_modules/
+frontend/dist/
+data/
+*.db
+*.db.backup
+.claude/
+"@ | Out-File -FilePath ".gitignore" -Encoding utf8

@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /weekly
+Disallow: /resources
+Disallow: /gallery
+Disallow: /setup
+Disallow: /account
+Disallow: /yearly-report
+Disallow: /admin-settings
+Disallow: /admin-curriculum
+Disallow: /api/
+
+Sitemap: https://homeschoolhub.app/sitemap.xml
